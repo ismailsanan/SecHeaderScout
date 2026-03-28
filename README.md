@@ -19,20 +19,14 @@ recommended security headers in HTTP responses.
 
 | Header | Description |
 |--------|-------------|
-| Content-Security-Policy | Prevents XSS and code injection attacks |
-| X-Frame-Options | Prevents clickjacking attacks |
-| X-Content-Type-Options | Prevents MIME type sniffing |
-| Strict-Transport-Security | Enforces HTTPS connections |
-| Referrer-Policy | Controls referrer information sent with requests |
-| Permissions-Policy | Controls access to browser features and APIs |
+| Content-Security-Policy | Prevents XSS and injection attacks |
+| X-Frame-Options | Prevents clickjacking |
+| X-Content-Type-Options | Prevents MIME sniffing |
+| Strict-Transport-Security | Enforces HTTPS |
+| Referrer-Policy | Controls referrer information |
+| Permissions-Policy | Controls browser features |
 | Cross-Origin-Opener-Policy | Controls cross-origin window access |
 | Cross-Origin-Resource-Policy | Controls cross-origin resource sharing |
-| Cross-Origin-Embedder-Policy | Controls cross-origin resource embedding |
-| X-DNS-Prefetch-Control | Controls DNS prefetching behavior |
-| Cache-Control | Controls caching behavior of responses |
-| Clear-Site-Data | Clears browsing data on logout |
-| X-Permitted-Cross-Domain-Policies | Controls cross-domain data loading |
-
 
 ---
 
