@@ -1,42 +1,38 @@
 # SecHeaderScout
 
-A Burp Suite extension that automatically detects missing OWASP 
-recommended security headers in HTTP responses.
+A Burp Suite extension that automatically detects missing OWASP recommended security headers in HTTP responses
 
----
+Because let’s be honest why manually check security headers when you can automate it and be lazier?
 
-## Features
+## What It Does
 
-- Automatically reads targets from Burp's site map
-- Supports adding custom targets manually
-- Checks against all OWASP recommended security headers
-- Clean results panel showing missing headers per host
-- Runs scans in background without freezing Burp
+Reads targets from Burp site map, or you can insert custom hosts  → sends request → checks headers → reports missing
 
----
 
 ## OWASP Headers Checked
 
 | Header | Description |
 |--------|-------------|
-| Content-Security-Policy | Prevents XSS and injection attacks |
-| X-Frame-Options | Prevents clickjacking |
-| X-Content-Type-Options | Prevents MIME sniffing |
-| Strict-Transport-Security | Enforces HTTPS |
-| Referrer-Policy | Controls referrer information |
-| Permissions-Policy | Controls browser features |
+| Content-Security-Policy | Prevents XSS and code injection attacks |
+| X-Frame-Options | Prevents clickjacking attacks |
+| X-Content-Type-Options | Prevents MIME type sniffing |
+| Strict-Transport-Security | Enforces HTTPS connections |
+| Referrer-Policy | Controls referrer information sent with requests |
+| Permissions-Policy | Controls access to browser features and APIs |
 | Cross-Origin-Opener-Policy | Controls cross-origin window access |
 | Cross-Origin-Resource-Policy | Controls cross-origin resource sharing |
-
+| Cross-Origin-Embedder-Policy | Controls cross-origin resource embedding |
+| X-DNS-Prefetch-Control | Controls DNS prefetching behavior |
+| Cache-Control | Controls caching behavior of responses |
+| Clear-Site-Data | Clears browsing data on logout |
+| X-Permitted-Cross-Domain-Policies | Controls cross-domain data loading |
 ---
 
 ## Installation
 
-### From BApp Store
-1. Open Burp Suite
-2. Go to Extensions → BApp Store
-3. Search for SecHeaderScout
-4. Click Install
+Currently not available on the Burp BApp Store YET...
+
+If you're from PortSwigger and reading this feel free to make it happen 👀
 
 ### Manual Installation
 1. Download the latest JAR from releases
@@ -46,42 +42,20 @@ recommended security headers in HTTP responses.
 5. Select the downloaded JAR
 6. Click Next
 
----
+
 
 ## Building From Source
 
 Requirements:
 - Java 17+
 - Maven
+
 ```bash
-git clone https://github.com/yourusername/SecHeaderScout.git
+git clone https://github.com/ismailsanan/SecHeaderScout
 cd SecHeaderScout
 mvn clean package
 ```
 
 JAR will be in `target/SecHeaderScout.jar`
 
----
 
-## Usage
-
-1. Browse your target application through Burp Proxy
-2. Open the SecHeaderScout tab in Burp
-3. Click Refresh from Burp to load discovered hosts
-4. Or add a custom target manually
-5. Select one or more hosts
-6. Click Scan Selected or Scan All
-7. Review missing headers in the results panel
-
----
-
-## Requirements
-
-- Burp Suite Community or Pro
-- Java 17+
-
----
-
-## License
-
-MIT License — see LICENSE file for details
