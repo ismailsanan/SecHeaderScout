@@ -3,6 +3,20 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Maven
+target/
+*.jar
+
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml
