@@ -34,8 +34,7 @@ public class ScanPanel {
     }
 
 
-
-    private JPanel buildUI(){
+    private JPanel buildUI() {
 
         JPanel panel = new JPanel(new BorderLayout(10, 10));
 //        panel.setPreferredSize(new Dimension(400, 200));
