@@ -1,5 +1,8 @@
 import java.util.List;
 
+
+
+//list of owasp response headers
 public class OWASPHeaders {
 
     public static final List<String> REQUIRED_HEADERS = List.of(

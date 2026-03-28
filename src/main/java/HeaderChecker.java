@@ -31,14 +31,13 @@ public class HeaderChecker {
                 .stream()
                 .map(header -> header.name())
                 .toList();
-        // step 5 — find missing headers
+        // find missing headers
         List<String> missing = OWASPHeaders.REQUIRED_HEADERS
                 .stream()
                 .filter(s -> !responseHeaders.contains(s))
                 .toList();
 
         return missing;
-
 
     }
 

@@ -152,13 +152,12 @@ public class ScanPanel {
                 if (missing.isEmpty()) {
                     resultsArea.append("[✓] All headers present\n");
                 } else {
-                    resultsArea.append("[!] Missing headers:\n");
+                    resultsArea.append("[!] Missing headers:\n \n");
                     missing.forEach(h ->
                             resultsArea.append(" - " + h + "\n")
                     );
                 }
             }
-            resultsArea.append("\n[DONE]\n");
         }).start();
     }
 }
