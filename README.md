@@ -5,9 +5,9 @@ A Burp Suite extension that automatically detects missing OWASP recommended secu
 Because let’s be honest why manually check security headers when you can automate it and be lazier?
 
 ## What It Does
-```
-Reads targets from Burp site map or you can insert custom hosts  → sends request → checks headers → reports missing
-```
+
+Reads targets from Burp site map, or you can insert custom hosts  → sends request → checks headers → reports missing
+
 
 ## OWASP Headers Checked
 
@@ -30,7 +30,7 @@ Reads targets from Burp site map or you can insert custom hosts  → sends reque
 
 ## Installation
 
-Currently not available on the Burp BApp Store.
+Currently not available on the Burp BApp Store YET...
 
 If you're from PortSwigger and reading this feel free to make it happen 👀
 
@@ -42,7 +42,7 @@ If you're from PortSwigger and reading this feel free to make it happen 👀
 5. Select the downloaded JAR
 6. Click Next
 
----
+
 
 ## Building From Source
 
@@ -58,4 +58,4 @@ mvn clean package
 
 JAR will be in `target/SecHeaderScout.jar`
 
----
+
