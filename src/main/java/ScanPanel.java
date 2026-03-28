@@ -38,6 +38,7 @@ public class ScanPanel {
     private JPanel buildUI(){
 
         JPanel panel = new JPanel(new BorderLayout(10, 10));
+//        panel.setPreferredSize(new Dimension(400, 200));
         JLabel title = new JLabel("SecHeaderScout — OWASP Header Checker");
         title.setFont(new Font("Arial", Font.BOLD, 14));
         panel.add(title, BorderLayout.NORTH);
@@ -50,7 +51,12 @@ public class ScanPanel {
                 ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
         );
         centerPanel.add(listLabel, BorderLayout.NORTH);
-        centerPanel.add(new JScrollPane(hostList), BorderLayout.CENTER);
+        JScrollPane listScrollPane = new JScrollPane(hostList);
+        listScrollPane.setPreferredSize(new Dimension(200, 50));
+        centerPanel.add(listScrollPane, BorderLayout.CENTER);
+
+//toDo inmpleement a delete button
+
         panel.add(centerPanel, BorderLayout.CENTER);
 
         // SOUTH — controls
@@ -80,7 +86,9 @@ public class ScanPanel {
         resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         JPanel resultsPanel = new JPanel(new BorderLayout());
         resultsPanel.add(new JLabel("Results:"), BorderLayout.NORTH);
-        resultsPanel.add(new JScrollPane(resultsArea), BorderLayout.CENTER);
+        JScrollPane resultsScrollPane = new JScrollPane(resultsArea);
+        resultsScrollPane.setPreferredSize(new Dimension(600, 300));
+        resultsPanel.add(resultsScrollPane, BorderLayout.CENTER);
 
         controlPanel.add(inputRow);
         controlPanel.add(scanRow);
@@ -147,7 +155,7 @@ public class ScanPanel {
                 } else {
                     resultsArea.append("[!] Missing headers:\n");
                     missing.forEach(h ->
-                            resultsArea.append("    → " + h + "\n")
+                            resultsArea.append(" - " + h + "\n")
                     );
                 }
             }

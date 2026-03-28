@@ -1,6 +1,5 @@
 import burp.api.montoya.BurpExtension;
 import burp.api.montoya.MontoyaApi;
-import burp.api.montoya.logging.Logging;
 
 public class SecHeaderScout implements BurpExtension {
     @Override
