@@ -4,10 +4,11 @@ A Burp Suite extension that automatically detects missing OWASP recommended secu
 
 Because let’s be honest why manually check security headers when you can automate it and be lazier?
 
+![usage.gif](usage.gif)
+
 ## What It Does
 
 Reads targets from Burp site map, or you can insert custom hosts  → sends request → checks headers → reports missing
-
 
 ## OWASP Headers Checked
 
