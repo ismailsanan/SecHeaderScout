@@ -54,7 +54,7 @@ public class ScanPanel {
         listScrollPane.setPreferredSize(new Dimension(200, 50));
         centerPanel.add(listScrollPane, BorderLayout.CENTER);
 
-//toDo inmpleement a delete button
+//toDo inmpleement a delete HOST button
 
         panel.add(centerPanel, BorderLayout.CENTER);
 
