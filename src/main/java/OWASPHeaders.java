@@ -3,6 +3,7 @@ import java.util.List;
 
 
 //list of owasp response headers
+//take matti suggestion call the headers dynamically  https://github.com/OWASP/www-project-secure-headers/blob/master/ci/headers_add.json
 public class OWASPHeaders {
 
     public static final List<String> REQUIRED_HEADERS = List.of(
