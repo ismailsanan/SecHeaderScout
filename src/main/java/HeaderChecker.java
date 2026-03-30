@@ -24,6 +24,8 @@ public class HeaderChecker {
 
         if (response.response().statusCode() >= 400 && response.response().statusCode() < 600) {
         HttpRequest notsecurerequest = HttpRequest.httpRequestFromUrl("http://" + host + "/" );
+
+        //is this the issue ? cant i rewrite this var ?
         response = api.http().sendRequest(notsecurerequest);
 
         if(response.response().statusCode() >= 400 && response.response().statusCode() < 600 || !response.hasResponse() ) {
