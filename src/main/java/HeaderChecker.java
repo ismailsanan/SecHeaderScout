@@ -51,7 +51,7 @@ public class HeaderChecker {
     private  List<String> extractHeader (HttpRequestResponse res ) {
         List<String> headers = res.response().headers()
                 .stream()
-                .map(header -> header.name().toLowerCase())
+                .map(header -> header.name())
                 .toList();
 
         return headers;
