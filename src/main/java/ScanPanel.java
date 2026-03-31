@@ -54,7 +54,6 @@ public class ScanPanel {
         listScrollPane.setPreferredSize(new Dimension(200, 50));
         centerPanel.add(listScrollPane, BorderLayout.CENTER);
 
-//toDo inmpleement a delete HOST button
 
         panel.add(centerPanel, BorderLayout.CENTER);
 
@@ -65,20 +64,25 @@ public class ScanPanel {
         JPanel inputRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JTextField customInput = new JTextField(20);
         JButton addButton = new JButton("Add Custom Target");
-        JButton refreshButton = new JButton("Refresh from Burp");
+        JButton refreshButton = new JButton("Extract Sitemap ");
         inputRow.add(new JLabel("Custom Target:"));
         inputRow.add(customInput);
         inputRow.add(addButton);
         inputRow.add(refreshButton);
 
-        // row 2 — scan buttons
+        // row 2 — scan and delete buttons
+
         JPanel scanRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton delete = new JButton("Delete Selected");
+        JButton clearTargets = new JButton("Clear Targets");
         JButton scanSelectedButton = new JButton("Scan Selected");
         JButton scanAllButton = new JButton("Scan All");
         JButton clearButton = new JButton("Clear Results");
         scanRow.add(scanSelectedButton);
         scanRow.add(scanAllButton);
         scanRow.add(clearButton);
+        scanRow.add(delete);
+        scanRow.add(clearTargets);
 
         // row 3 — results
         resultsArea.setEditable(false);
@@ -124,6 +128,16 @@ public class ScanPanel {
             resultsArea.setText("");
         });
 
+        delete.addActionListener(e ->{
+            List<String> selected = hostList.getSelectedValuesList();
+            selected.forEach(host -> hostListModel.removeElement(host));
+
+        });
+
+        clearTargets.addActionListener(e -> {
+            hostListModel.clear();
+        });
+
         return panel;
     }
 
@@ -148,7 +162,6 @@ public class ScanPanel {
             for (String host : hosts) {
                 resultsArea.append("\n[SCANNING] " + host + "\n");
                 List<String> missing = headerChecker.checkHeaders(host);
-
                 if (missing.isEmpty()) {
                     resultsArea.append("[✓] All headers present\n");
                 } else {
