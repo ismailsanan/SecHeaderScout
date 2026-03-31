@@ -14,6 +14,8 @@ public class SecHeaderScout implements BurpExtension {
                 "SecHeaderScout",
                 scanPanel.getPanel()
         );
-        api.logging().logToOutput(" loaded (˶ᵔ ᵕ ᵔ˶)");
+        api.logging().logToOutput("Loaded \n{\\__/}\n" +
+                "(●_●)\n" +
+                "( >> ) hungry for a shwarma? ");
     }
 }
