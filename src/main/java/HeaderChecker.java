@@ -22,7 +22,7 @@ public class HeaderChecker {
         HttpRequest request = HttpRequest.httpRequestFromUrl("https://" + host + "/" );
         HttpRequestResponse response = api.http().sendRequest(request);
 
-
+        // if the response in https returns a status code of fail status fallback to http
         if (response.response().statusCode() >= 400 && response.response().statusCode() < 600) {
         HttpRequest notsecurerequest = HttpRequest.httpRequestFromUrl("http://" + host + "/" );
 
