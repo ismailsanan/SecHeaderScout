@@ -64,11 +64,11 @@ public class ScanPanel {
         JPanel inputRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JTextField customInput = new JTextField(20);
         JButton addButton = new JButton("Add Custom Target");
-        JButton refreshButton = new JButton("Extract Sitemap ");
+        JButton extractSitemap = new JButton("Extract Sitemap ");
         inputRow.add(new JLabel("Custom Target:"));
         inputRow.add(customInput);
         inputRow.add(addButton);
-        inputRow.add(refreshButton);
+        inputRow.add(extractSitemap);
 
         // row 2 — scan and delete buttons
 
@@ -107,7 +107,7 @@ public class ScanPanel {
             }
         });
 
-        refreshButton.addActionListener(e -> {
+        extractSitemap.addActionListener(e -> {
             refreshHostsFromBurp();
         });
 
