@@ -5,7 +5,6 @@ public class SecHeaderScout implements BurpExtension {
     @Override
     public void initialize(MontoyaApi api) {
 
-        api.logging().logToOutput("loading ...");
         api.extension().setName("SecHeaderScout");
 
         ScanPanel scanPanel = new ScanPanel(api);
@@ -14,8 +13,8 @@ public class SecHeaderScout implements BurpExtension {
                 "SecHeaderScout",
                 scanPanel.getPanel()
         );
-        api.logging().logToOutput("Loaded \n{\\__/}\n" +
+        api.logging().logToOutput("{\\__/}\n" +
                 "(●_●)\n" +
-                "( >> ) hungry for a shwarma? ");
+                "( >> ) hungry for a shwarma?\n\n ");
     }
 }

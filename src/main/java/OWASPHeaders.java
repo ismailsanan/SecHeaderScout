@@ -37,11 +37,13 @@ public class OWASPHeaders {
     // implement a dynamic solution for the headers by fetching data from  https://raw.github.com/OWASP/www-project-secure-headers/blob/master/ci/headers_add.json
     public final List<String> Dynamic_REQUEST_HEADERS() {
 
-        HttpRequest request = HttpRequest.httpRequestFromUrl("https://raw.github.com/OWASP/www-project-secure-headers/blob/master/ci/headers_add.json");
+        //HttpRequest request = HttpRequest.httpRequestFromUrl("https://raw.githubusercontent.com/OWASP/www-project-secure-headers/refs/heads/master/ci/headers_add.json");
 
-        HttpRequestResponse response = api.http().sendRequest(request);
+        //HttpRequestResponse response = api.http().sendRequest(request);
 
         //Json Structure
+        //api.logging().logToOutput(response.hasResponse());
+        // use some api util jason structs
 
 
         return null;
