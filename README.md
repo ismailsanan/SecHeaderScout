@@ -8,9 +8,14 @@ Because let’s be honest why manually check security headers when you can autom
 
 ## What It Does
 
-Reads targets from Burp site map, or you can insert custom hosts  → sends request → checks headers → reports missing
+Quick Scan  -> sends a request to each target's root page, checks response headers
+
+Deep Scan   -> reads every response already captured in Burp's site map, analyzes headers per URL with no new requests
+
+Reads targets from Burp's site map or you can insert custom hosts → sends request → checks headers → reports missing or misconfigured
 
 ## OWASP Headers Checked
+
 
 | Header | Description |
 |--------|-------------|
@@ -27,6 +32,20 @@ Reads targets from Burp site map, or you can insert custom hosts  → sends requ
 | Cache-Control | Controls caching behavior of responses |
 | Clear-Site-Data | Clears browsing data on logout |
 | X-Permitted-Cross-Domain-Policies | Controls cross-domain data loading |
+
+Headers are fetched dynamically from the [OWASP Secure Headers Project](https://github.com/OWASP/www-project-secure-headers) on startup, with the list above used as a fallback if the fetch fails.
+
+---
+
+## Features
+
+- Quick Scan and Deep Scan
+- Flags misconfigured headers
+- Highlights critical URLs (login, logout, admin, api, payment)
+- Overall security score for each scan
+- Export results as an HTML report
+- Rescan & Compare against a previous report to track activity 
+
 ---
 
 ## Installation

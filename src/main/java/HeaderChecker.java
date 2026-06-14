@@ -1,115 +1,103 @@
-
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
-
+/**
+ * Handles Quick Scan  sends GET / per host
+ */
 public class HeaderChecker {
 
     private final MontoyaApi api;
+    private final List<String> requiredHeaders;
 
-
-    public HeaderChecker(MontoyaApi api) {
+    public HeaderChecker(MontoyaApi api, List<String> requiredHeaders) {
         this.api = api;
+        this.requiredHeaders = requiredHeaders;
     }
 
-
-    public List<String> checkHeaders (String host) {
+    public ScanResult checkHeaders(String host) {
 
         String cleanHost = host
                 .replace("https://", "")
                 .replace("http://", "")
-                .replace("/", "")
                 .trim();
 
+        api.logging().logToOutput("[CHECK] " + cleanHost);
 
-        api.logging().logToOutput("[DEBUG] Checking host: " + cleanHost);
-        api.logging().logToOutput("[DEBUG] Sending HTTPS to: https://" + cleanHost + "/");
+        HttpRequestResponse interaction = sendWithTimeout("https://" + cleanHost + "/", 5);
 
-        // try HTTPS with 5 second timeout
-        HttpRequestResponse response = null;
+        // fallback to HTTP if HTTPS fails
+        if (interaction == null ||
+                !interaction.hasResponse() ||
+                interaction.response().statusCode() >= 400) {
+
+            api.logging().logToOutput("[CHECK] HTTPS failed — trying HTTP");
+            interaction = sendWithTimeout("http://" + cleanHost + "/", 5);
+        }
+
+        if (interaction == null || !interaction.hasResponse()) {
+            return new ScanResult(
+                    "https://" + cleanHost + "/",
+                    List.of("[ERROR] Host Unreachable"),
+                    List.of()
+            );
+        }
+
+        return analyzeResponse(
+                "https://" + cleanHost + "/",
+                interaction
+        );
+    }
+
+    public ScanResult analyzeResponse(String url, HttpRequestResponse interaction) {
+
+        // extract response header names lowercase
+        List<String> responseHeaders = interaction.response().headers()
+                .stream()
+                .map(h -> h.name().toLowerCase())
+                .toList();
+
+        // find missing headers
+        List<String> missing = requiredHeaders
+                .stream()
+                .filter(h -> !responseHeaders.contains(h))
+                .toList();
+
+        // find misconfigured headers
+        List<String> misconfigured = new ArrayList<>();
+
+        interaction.response().headers().forEach(header -> {
+            List<String> issues = MisconfigurationChecker.check(
+                    header.name(),
+                    header.value()
+            );
+            issues.forEach(issue ->
+                    misconfigured.add(header.name() + ": " + issue)
+            );
+        });
+
+        return new ScanResult(url, missing, misconfigured);
+    }
+
+    private HttpRequestResponse sendWithTimeout(String url, int seconds) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-
         try {
             Future<HttpRequestResponse> future = executor.submit(() ->
-                    api.http().sendRequest(HttpRequest.httpRequestFromUrl("https://" + cleanHost + "/"))
+                    api.http().sendRequest(HttpRequest.httpRequestFromUrl(url))
             );
-
-            response = future.get(5, TimeUnit.SECONDS);
-            api.logging().logToOutput("[DEBUG] HTTPS responded — status: " + response.response().statusCode());
-
+            return future.get(seconds, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
-            api.logging().logToOutput("[DEBUG] HTTPS timed out after 5 seconds");
-            api.logging().logToOutput("[DEBUG] Falling back to HTTP: http://" + cleanHost + "/");
-
+            api.logging().logToOutput("[TIMEOUT] " + url);
+            return null;
         } catch (Exception e) {
-            api.logging().logToOutput("[DEBUG] HTTPS error: " + e.getMessage());
-
+            api.logging().logToOutput("[ERROR] " + url + " — " + e.getMessage());
+            return null;
         } finally {
             executor.shutdownNow();
         }
-
-        // if HTTPS timed out or failed — try HTTP
-        if (response == null || !response.hasResponse() || (response.response().statusCode() >= 400 && response.response().statusCode() < 600)) {
-
-            api.logging().logToOutput("[DEBUG] Trying HTTP: http://" + cleanHost + "/");
-
-            ExecutorService httpExecutor = Executors.newSingleThreadExecutor();
-
-            try {
-                Future<HttpRequestResponse> httpFuture = httpExecutor.submit(() ->
-                        api.http().sendRequest(HttpRequest.httpRequestFromUrl("http://" + cleanHost + "/"))
-                );
-
-                HttpRequestResponse fallback = httpFuture.get(5, TimeUnit.SECONDS);
-
-                api.logging().logToOutput("[DEBUG] HTTP responded — status: " +
-                        fallback.response().statusCode());
-
-                if (!fallback.hasResponse() || fallback.response().statusCode() >= 400) {
-                    return List.of("[ERROR] Host Unreachable");
-                }
-
-                return findMissing(extractHeader(fallback));
-
-            } catch (TimeoutException e) {
-                api.logging().logToOutput("[DEBUG] HTTP also timed out");
-                return List.of("[ERROR] Host Unreachable — both HTTPS and HTTP timed out");
-
-            } catch (Exception e) {
-                api.logging().logToOutput("[DEBUG] HTTP error: " + e.getMessage());
-                return List.of("[ERROR] " + e.getMessage());
-
-            } finally {
-                httpExecutor.shutdownNow();
-            }
-        }
-
-        // HTTPS worked — check headers
-        return findMissing(extractHeader(response));
     }
-
-    //extract headers
-    private  List<String> extractHeader (HttpRequestResponse res ) {
-
-        return res.response().headers()
-                .stream()
-                .map(header -> header.name())
-                .toList();
-
-    }
-    // find missing headers
-    private List<String> findMissing (List<String> missingheaders) {
-
-        return OWASPHeaders.REQUIRED_HEADERS
-                .stream()
-                .filter(s -> !missingheaders.contains(s))
-                .toList();
-    }
-
-
 }
-
