@@ -4,6 +4,7 @@ A Burp Suite extension that automatically detects missing OWASP recommended secu
 
 Because let’s be honest why manually check security headers when you can automate it and be lazier?
 
+<img width="2760" height="1000" alt="secheaderscout_logo_clean" src="https://github.com/user-attachments/assets/3bf81a1c-d1c8-40f0-9640-af3e29ace0b8" />
 
 
 ## What It Does
