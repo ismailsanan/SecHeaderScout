@@ -2,8 +2,6 @@
   <img width="2760" height="1000" alt="SecHeaderScout logo" src="https://github.com/user-attachments/assets/3bf81a1c-d1c8-40f0-9640-af3e29ace0b8" />
 </p>
 
-<h1 align="center">SecHeaderScout</h1>
-
 <p align="center">
   A Burp Suite extension for auditing OWASP recommended security headers across your entire application.
 </p>
