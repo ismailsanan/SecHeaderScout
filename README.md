@@ -8,7 +8,7 @@
 
 ---
 
-Because let's be honest — why manually check security headers when you can automate it and be lazier?
+Because let's be honest why manually check security headers when you can automate it and be lazier?
 
 ## What It Does
 
