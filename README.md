@@ -1,5 +1,6 @@
 <p align="center">
-  <img width="2760" height="1000" alt="SecHeaderScout logo" src="https://github.com/user-attachments/assets/3bf81a1c-d1c8-40f0-9640-af3e29ace0b8" />
+  <img width="2760" height="840" alt="secheaderscout_logo_final" src="https://github.com/user-attachments/assets/7a3944a3-8023-4f8e-a00d-390d997e4b9c" />
+
 </p>
 
 <p align="center">
