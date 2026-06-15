@@ -8,11 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Main UI tab for SecHeaderScout.
- *
- * Layout overview:
- *   NORTH  -> title + score, target list, controls (input row, scan row, filter row)
- *   CENTER -> results area (expands to fill remaining space)
+ * Main UI tabs.
  */
 public class ScanPanel {
 
@@ -43,9 +39,6 @@ public class ScanPanel {
     public JPanel getPanel() {
         return mainPanel;
     }
-
-    // UI
-
 
     private JPanel buildUI() {
 
@@ -211,7 +204,7 @@ public class ScanPanel {
 
         return filterRow;
     }
-
+//functions 
     private JPanel buildResultsPanel() {
         resultsArea.setEditable(false);
         resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
@@ -223,7 +216,6 @@ public class ScanPanel {
         return resultsPanel;
     }
 
-    // Target list
 
     private void refreshHostsFromBurp() {
         hostListModel.clear();
@@ -235,7 +227,7 @@ public class ScanPanel {
         });
     }
 
-    // Scanning
+
     private void runQuickScan(List<String> hosts) {
         new Thread(() -> {
             List<ScanResult> results = new ArrayList<>();
