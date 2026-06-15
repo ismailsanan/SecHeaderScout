@@ -1,11 +1,16 @@
-# SecHeaderScout
+<p align="center">
+  <img width="2760" height="1000" alt="SecHeaderScout logo" src="https://github.com/user-attachments/assets/3bf81a1c-d1c8-40f0-9640-af3e29ace0b8" />
+</p>
 
-A Burp Suite extension that automatically detects missing OWASP recommended security headers in HTTP responses
+<h1 align="center">SecHeaderScout</h1>
 
-Because let’s be honest why manually check security headers when you can automate it and be lazier?
+<p align="center">
+  A Burp Suite extension for auditing OWASP recommended security headers across your entire application.
+</p>
 
-<img width="2760" height="1000" alt="secheaderscout_logo_clean" src="https://github.com/user-attachments/assets/3bf81a1c-d1c8-40f0-9640-af3e29ace0b8" />
+---
 
+Because let's be honest — why manually check security headers when you can automate it and be lazier?
 
 ## What It Does
 
