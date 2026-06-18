@@ -9,7 +9,6 @@ import java.util.List;
 
 /**
  * Main UI tab for SecHeaderScout.
- *
  * Layout overview:
  *   NORTH  -> title + score, target list, controls (input row, scan row, filter row)
  *   CENTER -> results area (expands to fill remaining space)
@@ -159,7 +158,18 @@ public class ScanPanel {
             runQuickScan(selected);
         });
 
-        deepScanButton.addActionListener(e -> runDeepScan());
+
+
+        deepScanButton.addActionListener(e -> {
+
+            // take the selected value
+                    List<String> selected = hostList.getSelectedValuesList();
+                    if (selected.isEmpty()) {
+                        appendResult("No targets selected.\n");
+                        return;
+                    }
+                    runDeepScan(selected);
+        });
         exportButton.addActionListener(e -> exportReport());
         compareButton.addActionListener(e -> runCompare());
 
@@ -253,10 +263,16 @@ public class ScanPanel {
         }).start();
     }
 
-    private void runDeepScan() {
+    private void runDeepScan(List<String> hosts) {
         new Thread(() -> {
-            appendResult("\n[DEEP SCAN] Reading from Burp site map...\n");
-            List<ScanResult> results = deepScanner.scan();
+            api.logging().logToOutput("selected : " + hosts);
+
+            List<ScanResult> results = new ArrayList<>();
+            for (String host : hosts) {
+                appendResult("\n[DEEP SCAN] Reading " + host + " from Burp site map...\n");
+                results.addAll(deepScanner.scan(host));
+            }
+
             lastResults = results;
             displayResults(results);
             updateScore(results);
