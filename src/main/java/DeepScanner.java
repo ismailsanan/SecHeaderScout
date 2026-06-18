@@ -46,7 +46,7 @@ public class DeepScanner {
                 results.add(result);
 
             } catch (Exception e) {
-                api.logging().logToOutput("[DEEP] Error: " + e.getMessage());
+                api.logging().logToError("[DEEP] Error: " + e.getMessage());
             }
         });
 
