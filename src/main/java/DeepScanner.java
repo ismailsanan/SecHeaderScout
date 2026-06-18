@@ -1,9 +1,6 @@
 import burp.api.montoya.MontoyaApi;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * reads all responses from Burp site map
@@ -20,24 +17,28 @@ public class DeepScanner {
         this.headerChecker = headerChecker;
     }
 
-    public List<ScanResult> scan() {
+    public List<ScanResult> scan(String host) {
         List<ScanResult> results = new ArrayList<>();
         Set<String> seenUrls = new HashSet<>();
 
+        api.logging().logToOutput("[DEEP] Scanning host: " + host);
+
         api.siteMap().requestResponses().forEach(interaction -> {
             try {
-                // skip if no response
                 if (!interaction.hasResponse()) return;
 
-                String url = interaction.request().url().toString();
+                String requestHost = interaction.request().httpService().host();
 
-                // skip duplicates
+                // only process selected host
+                if (!requestHost.equalsIgnoreCase(host)) return;
+
+                String url = interaction.request().url();
+
                 if (seenUrls.contains(url)) return;
                 seenUrls.add(url);
 
-                // skip non HTTP responses
                 int status = interaction.response().statusCode();
-                if (status < 200 || status >= 600) return;
+                if (status < 200 || status >= 600) return; // should i consider only 200 okay ?
 
                 api.logging().logToOutput("[DEEP] Analyzing: " + url);
 
@@ -49,7 +50,7 @@ public class DeepScanner {
             }
         });
 
-        api.logging().logToOutput("[DEEP] Scanned " + results.size() + " URLs");
+        api.logging().logToOutput("[DEEP] Scanned " + results.size() + " URLs for " + host);
         return results;
     }
 }

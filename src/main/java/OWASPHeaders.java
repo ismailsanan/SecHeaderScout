@@ -81,7 +81,8 @@ public class OWASPHeaders {
     );
 
     // fallback list if fetch fails
-    public static final List<String> FALLBACK_HEADERS = new ArrayList<>(HEADER_INFO.keySet());
+    public static final List<String> FALLBACK_HEADERS =
+            List.copyOf(HEADER_INFO.keySet());
 
     public OWASPHeaders(MontoyaApi api) {
         this.api = api;
@@ -96,52 +97,41 @@ public class OWASPHeaders {
 
             HttpRequestResponse interaction = api.http().sendRequest(request);
 
-            if (!interaction.hasResponse() ||
-                    interaction.response().statusCode() != 200) {
-                api.logging().logToOutput("[OWASP] Fetch failed — using fallback list");
+            if (!interaction.hasResponse() || interaction.response().statusCode() != 200) {
                 return FALLBACK_HEADERS;
             }
 
             String body = interaction.response().bodyToString();
 
             if (!api.utilities().jsonUtils().isValidJson(body)) {
-                api.logging().logToOutput("[OWASP] Invalid JSON — using fallback list");
                 return FALLBACK_HEADERS;
             }
 
             List<String> headers = new ArrayList<>();
-            int index = 0;
 
-            while (true) {
-                String path = "$.headers[" + index + "].name";
-
+            for (int i = 0; ; i++) {
                 String name;
                 try {
-                    name = api.utilities().jsonUtils().readString(body, path);
+                    name = api.utilities().jsonUtils()
+                            .readString(body, "$.headers[" + i + "].name");
                 } catch (Exception e) {
-                    break; // index out of range — no more elements
+                    break;
                 }
 
-                if (name == null || name.isEmpty()) break;
+
+                if (name == null || name.isEmpty()) {
+                    break;
+                }
 
                 headers.add(name.toLowerCase());
-                index++;
             }
 
-            if (headers.isEmpty()) {
-                api.logging().logToError("[OWASP] No headers parsed — using fallback list");
-                return FALLBACK_HEADERS;
-            }
-
-            api.logging().logToOutput("[OWASP] Fetched " + headers.size() + " headers");
-            return headers;
+            return headers.isEmpty() ? FALLBACK_HEADERS : headers;
 
         } catch (Exception e) {
-            api.logging().logToOutput("[OWASP] Error: " + e.getMessage() + " — using fallback");
             return FALLBACK_HEADERS;
         }
     }
-
     // get HeaderInfo for a specific header name
     public static HeaderInfo getInfo(String headerName) {
         return HEADER_INFO.getOrDefault(
