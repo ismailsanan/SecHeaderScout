@@ -94,7 +94,7 @@ public class HeaderChecker {
             api.logging().logToOutput("[TIMEOUT] " + url);
             return null;
         } catch (Exception e) {
-            api.logging().logToOutput("[ERROR] " + url + " — " + e.getMessage());
+            api.logging().logToError("[ERROR] " + url + " — " + e.getMessage());
             return null;
         } finally {
             executor.shutdownNow();
