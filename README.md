@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="2760" height="840" alt="secheaderscout_logo_final" src="https://github.com/user-attachments/assets/7a3944a3-8023-4f8e-a00d-390d997e4b9c" />
+ <img width="1942" height="809" alt="ChatGPT Image Jul 3, 2026, 06_20_55 PM" src="https://github.com/user-attachments/assets/2135b846-ad4f-4c29-aac1-16e249cda606" />
 
 </p>
 
