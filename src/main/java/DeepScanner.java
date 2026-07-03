@@ -1,9 +1,7 @@
 import burp.api.montoya.MontoyaApi;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * reads all responses from Burp site map
@@ -20,20 +18,20 @@ public class DeepScanner {
         this.headerChecker = headerChecker;
     }
 
-    public List<ScanResult> scan() {
-        List<ScanResult> results = new ArrayList<>();
-        Set<String> seenUrls = new HashSet<>();
 
+
+    public List<ScanResult> scan(String host) {
+        List<ScanResult> results = new ArrayList<>();
+
+                //take request from sitemap
         api.siteMap().requestResponses().forEach(interaction -> {
             try {
-                // skip if no response
+
+                if(!interaction.request().hasHeader("Host", host)) return;
+
                 if (!interaction.hasResponse()) return;
 
-                String url = interaction.request().url().toString();
-
-                // skip duplicates
-                if (seenUrls.contains(url)) return;
-                seenUrls.add(url);
+                String url = interaction.request().url();
 
                 // skip non HTTP responses
                 int status = interaction.response().statusCode();
@@ -48,8 +46,6 @@ public class DeepScanner {
                 api.logging().logToOutput("[DEEP] Error: " + e.getMessage());
             }
         });
-
-        api.logging().logToOutput("[DEEP] Scanned " + results.size() + " URLs");
         return results;
     }
 }

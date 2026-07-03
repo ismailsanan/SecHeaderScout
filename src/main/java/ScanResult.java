@@ -9,22 +9,26 @@ public class ScanResult {
     private final List<String> missingHeaders;
     private final List<String> misconfiguredHeaders;
     private final UrlClassifier.UrlType urlType;
+    private final String method;
 
     public ScanResult(
             String url,
             List<String> missingHeaders,
-            List<String> misconfiguredHeaders
+            List<String> misconfiguredHeaders,
+            String method
     ) {
         this.url = url;
         this.missingHeaders = missingHeaders;
         this.misconfiguredHeaders = misconfiguredHeaders;
         this.urlType = UrlClassifier.classify(url);
+        this.method = method;
     }
 
     public String getUrl() { return url; }
     public List<String> getMissingHeaders() { return missingHeaders; }
     public List<String> getMisconfiguredHeaders() { return misconfiguredHeaders; }
     public UrlClassifier.UrlType getUrlType() { return urlType; }
+    public String getMethod() {return  method;}
 
     public boolean isClean() {
         return missingHeaders.isEmpty() && misconfiguredHeaders.isEmpty();

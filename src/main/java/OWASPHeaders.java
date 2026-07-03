@@ -80,12 +80,35 @@ public class OWASPHeaders {
             ))
     );
 
+// for API urls check for these sec headers since we excluded some headers like x-frame-options for obsvious reasons no client side in API
+    public static final List<String> API_HEADERS = List.of(
+            "cache-control",
+            "strict-transport-security",
+            "x-content-type-options",
+            "content-security-policy",
+            "cross-origin-embedder-policy",
+            "cross-origin-resource-policy",
+            "cross-origin-opener-policy",
+            "referrer-policy"
+    );
+
     // fallback list if fetch fails
     public static final List<String> FALLBACK_HEADERS = new ArrayList<>(HEADER_INFO.keySet());
 
     public OWASPHeaders(MontoyaApi api) {
         this.api = api;
     }
+
+
+// check if the url classifer is API then use API headers
+    public static List<String> headersForUrlType(UrlClassifier.UrlType type) {
+        if (type == UrlClassifier.UrlType.API) {
+            return API_HEADERS;
+        }
+        return FALLBACK_HEADERS;
+    }
+
+
 
     // fetch headers dynamically from OWASP GitHub
     public List<String> fetchHeaders() {
@@ -105,13 +128,14 @@ public class OWASPHeaders {
             String body = interaction.response().bodyToString();
 
             if (!api.utilities().jsonUtils().isValidJson(body)) {
-                api.logging().logToOutput("[OWASP] Invalid JSON — using fallback list");
+                api.logging().logToOutput("[OWASP] Invalid JSON —> using fallback list");
                 return FALLBACK_HEADERS;
             }
 
             List<String> headers = new ArrayList<>();
             int index = 0;
 
+            // the mechanism falls here the path is structured for array data manually
             while (true) {
                 String path = "$.headers[" + index + "].name";
 
@@ -119,7 +143,7 @@ public class OWASPHeaders {
                 try {
                     name = api.utilities().jsonUtils().readString(body, path);
                 } catch (Exception e) {
-                    break; // index out of range — no more elements
+                    break; // index out of range no more elements
                 }
 
                 if (name == null || name.isEmpty()) break;
@@ -129,7 +153,7 @@ public class OWASPHeaders {
             }
 
             if (headers.isEmpty()) {
-                api.logging().logToError("[OWASP] No headers parsed — using fallback list");
+                api.logging().logToError("[OWASP] No headers parsed —> using fallback list");
                 return FALLBACK_HEADERS;
             }
 
@@ -137,7 +161,7 @@ public class OWASPHeaders {
             return headers;
 
         } catch (Exception e) {
-            api.logging().logToOutput("[OWASP] Error: " + e.getMessage() + " — using fallback");
+            api.logging().logToOutput("[OWASP] Error: " + e.getMessage() + " —> using fallback");
             return FALLBACK_HEADERS;
         }
     }

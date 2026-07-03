@@ -10,6 +10,7 @@ public class UrlClassifier {
         NORMAL
     }
 
+    //claisify URL type besed on endpoint listed in
     public static UrlType classify(String url) {
         String lower = url.toLowerCase();
 
@@ -54,7 +55,7 @@ public class UrlClassifier {
             case ADMIN   -> " ADMIN";
             case API     -> " API";
             case PAYMENT -> " PAYMENT";
-            case NORMAL  -> "";
+            case NORMAL  -> " ";
         };
     }
 }

@@ -32,7 +32,7 @@ public class ScanPanel {
     public ScanPanel(MontoyaApi api, HeaderChecker headerChecker) {
         this.api = api;
         this.headerChecker = headerChecker;
-        this.deepScanner = new DeepScanner(api, headerChecker);
+        this.deepScanner = new DeepScanner(api, headerChecker );
         this.hostListModel = new DefaultListModel<>();
         this.hostList = new JList<>(hostListModel);
         this.resultsArea = new JTextArea();
@@ -74,7 +74,7 @@ public class ScanPanel {
     private JPanel buildTitlePanel() {
         JPanel titlePanel = new JPanel(new BorderLayout());
 
-        JLabel title = new JLabel("SecHeaderScout — OWASP Header Checker");
+        JLabel title = new JLabel("SecHeaderScout { OWASP Header Checker }");
         title.setFont(new Font("Arial", Font.BOLD, 14));
 
         scoreLabel.setFont(new Font("Arial", Font.BOLD, 13));
@@ -142,6 +142,7 @@ public class ScanPanel {
         JButton compareButton = new JButton("Rescan & Compare");
         JButton clearButton = new JButton("Clear");
         JButton copyButton = new JButton("Copy");
+        JButton copyMdButton    = new JButton("Copy as MD");
 
         scanRow.add(quickScanButton);
         scanRow.add(deepScanButton);
@@ -149,6 +150,7 @@ public class ScanPanel {
         scanRow.add(compareButton);
         scanRow.add(clearButton);
         scanRow.add(copyButton);
+        scanRow.add(copyMdButton);
 
         quickScanButton.addActionListener(e -> {
             List<String> selected = hostList.getSelectedValuesList();
@@ -159,7 +161,15 @@ public class ScanPanel {
             runQuickScan(selected);
         });
 
-        deepScanButton.addActionListener(e -> runDeepScan());
+        deepScanButton.addActionListener(e -> {
+            List<String> selected = hostList.getSelectedValuesList();
+            if (selected.isEmpty()) {
+                appendResult("No targets selected.\n");
+                return;
+            }
+            runDeepScan(selected);
+        });
+
         exportButton.addActionListener(e -> exportReport());
         compareButton.addActionListener(e -> runCompare());
 
@@ -173,6 +183,13 @@ public class ScanPanel {
         copyButton.addActionListener(e -> {
             StringSelection selection = new StringSelection(resultsArea.getText());
             Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+        });
+
+        copyMdButton.addActionListener(e -> {
+            String markdown = buildMarkdownReport(lastResults);
+            StringSelection selection = new StringSelection(markdown);
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+            appendResult("[COPIED] Results copied as Markdown\n");
         });
 
         return scanRow;
@@ -249,18 +266,27 @@ public class ScanPanel {
             lastResults = results;
             displayResults(results);
             updateScore(results);
+            appendResult("\n[DONE] Scanned " + results.size() + " URLs\n");
 
         }).start();
     }
 
-    private void runDeepScan() {
+    private void runDeepScan(List<String> hosts) {
         new Thread(() -> {
+            List<ScanResult> results = new ArrayList<>();
+
             appendResult("\n[DEEP SCAN] Reading from Burp site map...\n");
-            List<ScanResult> results = deepScanner.scan();
+
+            for(String host : hosts) {
+                results.addAll(deepScanner.scan(host));
+            }
+
             lastResults = results;
             displayResults(results);
             updateScore(results);
+
             appendResult("\n[DONE] Scanned " + results.size() + " URLs\n");
+
         }).start();
     }
 
@@ -278,7 +304,7 @@ public class ScanPanel {
 
             String urlLabel = UrlClassifier.getLabel(result.getUrlType());
 
-            appendResult("\n" + result.getUrl() +
+            appendResult("\n" + result.getMethod() + " "  + result.getUrl() +
                     (urlLabel.isEmpty() ? "" : " " + urlLabel) + "\n");
 
             if (result.isClean()) {
@@ -369,6 +395,49 @@ public class ScanPanel {
                 }
             }).start();
         }
+    }
+
+
+    private String buildMarkdownReport(List<ScanResult> results) {
+        if (results == null || results.isEmpty()) return "No results to copy.";
+
+        StringBuilder md = new StringBuilder();
+
+
+        for (ScanResult result : results) {
+            // skip completely clean results to keep the report focused
+            if (result.isClean()) continue;
+
+            String urlLabel = UrlClassifier.getLabel(result.getUrlType());
+
+            md.append("#### ").append(result.getUrl());
+            if (!urlLabel.isEmpty()) {
+                md.append(" `").append(urlLabel.replace("⚠ ", "").trim()).append("`");
+            }
+            md.append("\n\n");
+
+            if (!result.getMissingHeaders().isEmpty()) {
+                md.append("- Missing Headers\n");
+                for (String header : result.getMissingHeaders()) {
+                    md.append("\t - ").append(header).append("\n");
+                }
+                md.append("\n");
+            }
+
+            if (!result.getMisconfiguredHeaders().isEmpty()) {
+                md.append("- Misconfigured Headers\n");
+                for (String issue : result.getMisconfiguredHeaders()) {
+
+                    md.append("\t - ").append(issue).append("\n");
+
+                }
+                md.append("\n");
+            }
+
+            md.append("---\n\n");
+        }
+
+        return md.toString();
     }
 
     private void appendResult(String text) {

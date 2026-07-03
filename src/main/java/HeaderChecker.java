@@ -43,7 +43,8 @@ public class HeaderChecker {
             return new ScanResult(
                     "https://" + cleanHost + "/",
                     List.of("[ERROR] Host Unreachable"),
-                    List.of()
+                    List.of(),
+                    null
             );
         }
 
@@ -56,6 +57,10 @@ public class HeaderChecker {
     public ScanResult analyzeResponse(String url, HttpRequestResponse interaction) {
 
         // extract response header names lowercase
+        UrlClassifier.UrlType urlType = UrlClassifier.classify(url);
+        List<String> headersToCheck = OWASPHeaders.headersForUrlType(urlType);
+        String method = interaction.request().method();
+
         List<String> responseHeaders = interaction.response().headers()
                 .stream()
                 .map(h -> h.name().toLowerCase())
@@ -73,14 +78,19 @@ public class HeaderChecker {
         interaction.response().headers().forEach(header -> {
             List<String> issues = MisconfigurationChecker.check(
                     header.name(),
-                    header.value()
+                    header.value(),
+                    urlType
             );
             issues.forEach(issue ->
                     misconfigured.add(header.name() + ": " + issue)
             );
         });
 
-        return new ScanResult(url, missing, misconfigured);
+        // CORS is checked separately it needs all headers at once to detect dangerous combinations
+        List<String> corsIssues = CORSChecker.check(interaction.response().headers());
+        misconfigured.addAll(corsIssues);
+
+        return new ScanResult(url, missing, misconfigured , method);
     }
 
     private HttpRequestResponse sendWithTimeout(String url, int seconds) {
