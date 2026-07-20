@@ -313,6 +313,7 @@ public class ScanPanel {
                 result.getMissingHeaders().forEach(h ->
                         appendResult("  MISSING       -> " + h + "\n")
                 );
+
                 result.getMisconfiguredHeaders().forEach(h ->
                         appendResult("  MISCONFIGURED -> " + h + "\n")
                 );

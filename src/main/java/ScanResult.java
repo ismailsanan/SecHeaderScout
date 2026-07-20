@@ -1,7 +1,7 @@
 import java.util.List;
 
 /**
- * Represents the result of scanning a single URL
+ * Represents the result of scanning URL
  */
 public class ScanResult {
 

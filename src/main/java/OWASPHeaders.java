@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class OWASPHeaders {
+public class    OWASPHeaders {
 
     private final MontoyaApi api;
 
@@ -101,11 +101,21 @@ public class OWASPHeaders {
 
 
 // check if the url classifer is API then use API headers
+// clear-site-data only makes sense on logout pages
     public static List<String> headersForUrlType(UrlClassifier.UrlType type) {
         if (type == UrlClassifier.UrlType.API) {
             return API_HEADERS;
         }
-        return FALLBACK_HEADERS;
+        if (type == UrlClassifier.UrlType.LOGOUT) {
+            // logout gets the full list including clear-site-data
+            return FALLBACK_HEADERS;
+        }
+
+        // every other URL type gets the full list MINUS clear-site-data
+        return FALLBACK_HEADERS.stream()
+                .filter(h -> !h.equals("clear-site-data"))
+                .toList();
+
     }
 
 

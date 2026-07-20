@@ -33,7 +33,7 @@ public class CORSChecker {
         if (acao.equals("*"))
             issues.add("CORS: Access-Control-Allow-Origin is '*' —> any origin can read this response");
 
-        // null origin is dangerous — sandboxed iframes and file:// URIs use null
+        // null origin is dangerous —> sandboxed iframes and file:// URIs use null
         if (acao.equals("null"))
             issues.add("CORS: Access-Control-Allow-Origin is 'null' —> exploitable via sandboxed iframes or file:// URIs");
 
