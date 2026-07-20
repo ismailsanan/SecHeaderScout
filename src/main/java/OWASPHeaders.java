@@ -100,6 +100,7 @@ public class    OWASPHeaders {
     }
 
 
+
 // check if the url classifer is API then use API headers
 // clear-site-data only makes sense on logout pages
     public static List<String> headersForUrlType(UrlClassifier.UrlType type) {
@@ -111,10 +112,12 @@ public class    OWASPHeaders {
             return FALLBACK_HEADERS;
         }
 
+
         // every other URL type gets the full list MINUS clear-site-data
         return FALLBACK_HEADERS.stream()
                 .filter(h -> !h.equals("clear-site-data"))
                 .toList();
+
 
     }
 

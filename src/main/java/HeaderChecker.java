@@ -59,6 +59,7 @@ public class HeaderChecker {
         // extract response header names lowercase
         UrlClassifier.UrlType urlType = UrlClassifier.classify(url);
         List<String> headersToCheck = OWASPHeaders.headersForUrlType(urlType);
+
         String method = interaction.request().method();
 
         List<String> responseHeaders = interaction.response().headers()
@@ -67,7 +68,7 @@ public class HeaderChecker {
                 .toList();
 
         // find missing headers
-        List<String> missing = requiredHeaders
+        List<String> missing = headersToCheck
                 .stream()
                 .filter(h -> !responseHeaders.contains(h))
                 .toList();
