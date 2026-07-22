@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  A Burp Suite extension for auditing OWASP recommended security headers across your entire application.
+   A Burp Suite extension for auditing  HTTP Security Headers Scanner referencing OWASP recommended security headers across your entire application.
 </p>
 
 ---
