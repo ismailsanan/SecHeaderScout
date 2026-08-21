@@ -8,11 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Main UI tab for SecHeaderScout.
+ * main UI tab
  *
- * Layout overview:
- *   NORTH  -> title + score, target list, controls (input row, scan row, filter row)
- *   CENTER -> results area (expands to fill remaining space)
+ * NORTH  -> title + score, target list, controls
+ * CENTER -> results, expands to fill the rest
  */
 public class ScanPanel {
 
@@ -32,7 +31,7 @@ public class ScanPanel {
     public ScanPanel(MontoyaApi api, HeaderChecker headerChecker) {
         this.api = api;
         this.headerChecker = headerChecker;
-        this.deepScanner = new DeepScanner(api, headerChecker );
+        this.deepScanner = new DeepScanner(api, headerChecker);
         this.hostListModel = new DefaultListModel<>();
         this.hostList = new JList<>(hostListModel);
         this.resultsArea = new JTextArea();
@@ -40,78 +39,70 @@ public class ScanPanel {
         this.mainPanel = buildUI();
     }
 
-    public JPanel getPanel() {
-        return mainPanel;
-    }
+    public JPanel getPanel() { return mainPanel; }
 
-    // UI
-
+    //  UI 
 
     private JPanel buildUI() {
-
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JPanel topPanel = new JPanel();
-        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        // BoxLayout stacks by preferred height
+        // GridLayout forces equal rows and squashes everything
+        JPanel top = new JPanel();
+        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-        topPanel.add(buildTitlePanel());
-        topPanel.add(Box.createVerticalStrut(8));
-        topPanel.add(buildTargetPanel());
-        topPanel.add(Box.createVerticalStrut(8));
-        topPanel.add(buildInputRow());
-        topPanel.add(Box.createVerticalStrut(4));
-        topPanel.add(buildScanRow());
-        topPanel.add(Box.createVerticalStrut(4));
-        topPanel.add(buildFilterRow());
+        top.add(buildTitlePanel());
+        top.add(Box.createVerticalStrut(8));
+        top.add(buildTargetPanel());
+        top.add(Box.createVerticalStrut(8));
+        top.add(buildInputRow());
+        top.add(Box.createVerticalStrut(4));
+        top.add(buildScanRow());
+        top.add(Box.createVerticalStrut(4));
+        top.add(buildFilterRow());
 
-        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(top, BorderLayout.NORTH);
         panel.add(buildResultsPanel(), BorderLayout.CENTER);
 
         return panel;
     }
 
     private JPanel buildTitlePanel() {
-        JPanel titlePanel = new JPanel(new BorderLayout());
-
+        JPanel p = new JPanel(new BorderLayout());
         JLabel title = new JLabel("SecHeaderScout { OWASP Header Checker }");
         title.setFont(new Font("Arial", Font.BOLD, 14));
-
         scoreLabel.setFont(new Font("Arial", Font.BOLD, 13));
-
-        titlePanel.add(title, BorderLayout.WEST);
-        titlePanel.add(scoreLabel, BorderLayout.EAST);
-
-        return titlePanel;
+        p.add(title, BorderLayout.WEST);
+        p.add(scoreLabel, BorderLayout.EAST);
+        return p;
     }
 
     private JPanel buildTargetPanel() {
-        JPanel targetPanel = new JPanel(new BorderLayout());
-
+        JPanel p = new JPanel(new BorderLayout());
         hostList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-
-        JScrollPane listScrollPane = new JScrollPane(hostList);
-        listScrollPane.setPreferredSize(new Dimension(800, 100));
-
-        targetPanel.add(new JLabel("Targets:"), BorderLayout.NORTH);
-        targetPanel.add(listScrollPane, BorderLayout.CENTER);
-
-        return targetPanel;
+        JScrollPane sp = new JScrollPane(hostList);
+        sp.setPreferredSize(new Dimension(800, 100));
+        p.add(new JLabel("Targets:"), BorderLayout.NORTH);
+        p.add(sp, BorderLayout.CENTER);
+        return p;
     }
 
     private JPanel buildInputRow() {
-        JPanel inputRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
         JTextField customInput = new JTextField(20);
-        JButton addButton = new JButton("Add Custom Target");
-        JButton deleteButton = new JButton("Delete Selected");
-        JButton refreshButton = new JButton("Refresh from Burp ");
+        JButton addButton     = new JButton("Add Target");
+        JButton deleteButton  = new JButton("Delete Selected");
+        JButton clearTargets  = new JButton("Clear Targets");
+        JButton refreshButton = new JButton("Refresh from Burp");
 
-        inputRow.add(new JLabel("Custom Target:"));
-        inputRow.add(customInput);
-        inputRow.add(addButton);
-        inputRow.add(deleteButton);
-        inputRow.add(refreshButton);
+        row.add(new JLabel("Custom Target:"));
+        row.add(customInput);
+        row.add(addButton);
+        row.add(deleteButton);
+        row.add(clearTargets);
+        row.add(refreshButton);
 
         addButton.addActionListener(e -> {
             String host = customInput.getText().trim();
@@ -121,193 +112,172 @@ public class ScanPanel {
             }
         });
 
+        // remove every selected entry, not just the first
         deleteButton.addActionListener(e -> {
-            String selected = hostList.getSelectedValue();
-            if (selected != null) {
+            for (String selected : hostList.getSelectedValuesList()) {
                 hostListModel.removeElement(selected);
             }
         });
 
+        clearTargets.addActionListener(e -> hostListModel.clear());
         refreshButton.addActionListener(e -> refreshHostsFromBurp());
 
-        return inputRow;
+        return row;
     }
 
     private JPanel buildScanRow() {
-        JPanel scanRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        JButton quickScanButton = new JButton("Quick Scan");
-        JButton deepScanButton = new JButton("Deep Scan");
-        JButton exportButton = new JButton("Export Report");
-        JButton compareButton = new JButton("Rescan & Compare");
-        JButton clearButton = new JButton("Clear");
-        JButton copyButton = new JButton("Copy");
-        JButton copyMdButton    = new JButton("Copy as MD");
+        JButton quickScan  = new JButton("Quick Scan");
+        JButton deepScan   = new JButton("Deep Scan");
+        JButton export     = new JButton("Export Report");
+        JButton compare    = new JButton("Rescan & Compare");
+        JButton clear      = new JButton("Clear");
+        JButton copy       = new JButton("Copy");
+        JButton copyMd     = new JButton("Copy as MD");
 
-        scanRow.add(quickScanButton);
-        scanRow.add(deepScanButton);
-        scanRow.add(exportButton);
-        scanRow.add(compareButton);
-        scanRow.add(clearButton);
-        scanRow.add(copyButton);
-        scanRow.add(copyMdButton);
+        row.add(quickScan);
+        row.add(deepScan);
+        row.add(export);
+        row.add(compare);
+        row.add(clear);
+        row.add(copy);
+        row.add(copyMd);
 
-        quickScanButton.addActionListener(e -> {
+        // read the selection inside the listener, not when the UI is built
+        // otherwise the lambda captures an empty list forever
+        quickScan.addActionListener(e -> {
             List<String> selected = hostList.getSelectedValuesList();
-            if (selected.isEmpty()) {
-                appendResult("No targets selected.\n");
-                return;
-            }
+            if (selected.isEmpty()) { appendResult("No targets selected.\n"); return; }
             runQuickScan(selected);
         });
 
-        deepScanButton.addActionListener(e -> {
+        deepScan.addActionListener(e -> {
             List<String> selected = hostList.getSelectedValuesList();
-            if (selected.isEmpty()) {
-                appendResult("No targets selected.\n");
-                return;
-            }
+            if (selected.isEmpty()) { appendResult("No targets selected.\n"); return; }
             runDeepScan(selected);
         });
 
-        exportButton.addActionListener(e -> exportReport());
-        compareButton.addActionListener(e -> runCompare());
+        export.addActionListener(e -> exportReport());
+        compare.addActionListener(e -> runCompare());
 
-        clearButton.addActionListener(e -> {
+        clear.addActionListener(e -> {
             resultsArea.setText("");
             scoreLabel.setText("Score: N/A");
             scoreLabel.setForeground(Color.GRAY);
-            lastResults.clear();
+            lastResults = new ArrayList<>();
         });
 
-        copyButton.addActionListener(e -> {
-            StringSelection selection = new StringSelection(resultsArea.getText());
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+        copy.addActionListener(e -> toClipboard(resultsArea.getText()));
+
+        copyMd.addActionListener(e -> {
+            toClipboard(buildMarkdownReport(lastResults));
+            appendResult("[COPIED] results copied as Markdown\n");
         });
 
-        copyMdButton.addActionListener(e -> {
-            String markdown = buildMarkdownReport(lastResults);
-            StringSelection selection = new StringSelection(markdown);
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
-            appendResult("[COPIED] Results copied as Markdown\n");
-        });
-
-        return scanRow;
+        return row;
     }
 
     private JPanel buildFilterRow() {
-        JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        JButton filterAll = new JButton("All");
-        JButton filterMissing = new JButton("Missing");
-        JButton filterMisconfig = new JButton("Misconfigured");
-        JButton filterCritical = new JButton("Critical URLs");
+        JButton all       = new JButton("All");
+        JButton missing   = new JButton("Missing");
+        JButton misconfig = new JButton("Misconfigured");
+        JButton critical  = new JButton("Critical URLs");
 
-        filterRow.add(new JLabel("Filter:"));
-        filterRow.add(filterAll);
-        filterRow.add(filterMissing);
-        filterRow.add(filterMisconfig);
-        filterRow.add(filterCritical);
+        row.add(new JLabel("Filter:"));
+        row.add(all);
+        row.add(missing);
+        row.add(misconfig);
+        row.add(critical);
 
-        filterAll.addActionListener(e -> {
-            currentFilter = "ALL";
-            displayResults(lastResults);
-        });
-        filterMissing.addActionListener(e -> {
-            currentFilter = "MISSING";
-            displayResults(lastResults);
-        });
-        filterMisconfig.addActionListener(e -> {
-            currentFilter = "MISCONFIG";
-            displayResults(lastResults);
-        });
-        filterCritical.addActionListener(e -> {
-            currentFilter = "CRITICAL";
-            displayResults(lastResults);
-        });
+        all.addActionListener(e       -> applyFilter("ALL"));
+        missing.addActionListener(e   -> applyFilter("MISSING"));
+        misconfig.addActionListener(e -> applyFilter("MISCONFIG"));
+        critical.addActionListener(e  -> applyFilter("CRITICAL"));
 
-        return filterRow;
+        return row;
     }
 
     private JPanel buildResultsPanel() {
         resultsArea.setEditable(false);
         resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-
-        JPanel resultsPanel = new JPanel(new BorderLayout());
-        resultsPanel.add(new JLabel("Results:"), BorderLayout.NORTH);
-        resultsPanel.add(new JScrollPane(resultsArea), BorderLayout.CENTER);
-
-        return resultsPanel;
+        JPanel p = new JPanel(new BorderLayout());
+        p.add(new JLabel("Results:"), BorderLayout.NORTH);
+        p.add(new JScrollPane(resultsArea), BorderLayout.CENTER);
+        return p;
     }
 
-    // Target list
+    //  targets
 
     private void refreshHostsFromBurp() {
         hostListModel.clear();
         api.siteMap().requestResponses().forEach(rr -> {
             String host = rr.request().httpService().host();
-            if (!hostListModel.contains(host)) {
-                hostListModel.addElement(host);
-            }
+            if (!hostListModel.contains(host)) hostListModel.addElement(host);
         });
     }
 
-    // Scanning
+    //  scanning
+
     private void runQuickScan(List<String> hosts) {
         new Thread(() -> {
             List<ScanResult> results = new ArrayList<>();
-
             for (String host : hosts) {
                 appendResult("\n[SCANNING] " + host + "\n");
-                ScanResult result = headerChecker.checkHeaders(host);
-                results.add(result);
+                results.add(headerChecker.checkHeaders(host));
             }
-
-            lastResults = results;
-            displayResults(results);
-            updateScore(results);
-            appendResult("\n[DONE] Scanned " + results.size() + " URLs\n");
-
+            finish(results);
         }).start();
     }
 
     private void runDeepScan(List<String> hosts) {
         new Thread(() -> {
             List<ScanResult> results = new ArrayList<>();
-
-            appendResult("\n[DEEP SCAN] Reading from Burp site map...\n");
-
-            for(String host : hosts) {
+            appendResult("\n[DEEP SCAN] reading Burp site map...\n");
+            for (String host : hosts) {
                 results.addAll(deepScanner.scan(host));
             }
-
-            lastResults = results;
-            displayResults(results);
-            updateScore(results);
-
-            appendResult("\n[DONE] Scanned " + results.size() + " URLs\n");
-
+            finish(results);
         }).start();
     }
 
+    private void finish(List<ScanResult> results) {
+        lastResults = results;
+        displayResults(results);
+        updateScore(results);
+        appendResult("\n[DONE] " + results.size() + " URLs reported\n");
+    }
 
-    // Results display
+    //  results
+
+    private void applyFilter(String filter) {
+        currentFilter = filter;
+        displayResults(lastResults);
+    }
+
     private void displayResults(List<ScanResult> results) {
-        resultsArea.setText("");
+        SwingUtilities.invokeLater(() -> resultsArea.setText(""));
+
+        if (results == null || results.isEmpty()) {
+            appendResult("No results.\n");
+            return;
+        }
 
         for (ScanResult result : results) {
 
-            if (currentFilter.equals("MISSING") && result.getMissingHeaders().isEmpty()) continue;
+            if (currentFilter.equals("MISSING")   && result.getMissingHeaders().isEmpty()) continue;
             if (currentFilter.equals("MISCONFIG") && result.getMisconfiguredHeaders().isEmpty()) continue;
-            if (currentFilter.equals("CRITICAL") &&
-                    result.getUrlType() == UrlClassifier.UrlType.NORMAL) continue;
+            if (currentFilter.equals("CRITICAL")  && result.getUrlType() == UrlClassifier.UrlType.NORMAL) continue;
 
-            String urlLabel = UrlClassifier.getLabel(result.getUrlType());
+            String label = UrlClassifier.getLabel(result.getUrlType());
 
-            appendResult("\n" + result.getMethod() + " "  + result.getUrl() +
-                    (urlLabel.isEmpty() ? "" : " " + urlLabel) + "\n");
+            appendResult("\n" + result.getMethod() + " " + result.getUrl()
+                    + (label.isEmpty() ? "" : " " + label) + "\n");
 
             if (result.isClean()) {
+<<<<<<< Updated upstream
                 appendResult("  All headers present\n");
             } else {
                 result.getMissingHeaders().forEach(h ->
@@ -316,7 +286,17 @@ public class ScanPanel {
                 result.getMisconfiguredHeaders().forEach(h ->
                         appendResult("  MISCONFIGURED -> " + h + "\n")
                 );
+=======
+                appendResult("  no findings\n");
+                continue;
+>>>>>>> Stashed changes
             }
+
+            result.getMissingHeaders().forEach(h ->
+                    appendResult("  MISSING       -> " + h + "\n"));
+
+            result.getMisconfiguredHeaders().forEach(h ->
+                    appendResult("  MISCONFIGURED -> " + h + "\n"));
         }
     }
 
@@ -328,116 +308,114 @@ public class ScanPanel {
         });
     }
 
-    // Export / Compare
+    // export / compare
 
     private void exportReport() {
         if (lastResults.isEmpty()) {
-            appendResult("[EXPORT] No results to export. Run a scan first.\n");
+            appendResult("[EXPORT] nothing to export, run a scan first\n");
             return;
         }
 
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setSelectedFile(new File("SecHeaderScout_Report.html"));
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File("SecHeaderScout_Report.html"));
 
-        int result = fileChooser.showSaveDialog(mainPanel);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            String path = fileChooser.getSelectedFile().getAbsolutePath();
-            new Thread(() -> {
-                try {
-                    String exported = ReportExporter.export(lastResults, path);
-                    appendResult("[EXPORT] Report saved to: " + exported + "\n");
-                } catch (Exception e) {
-                    appendResult("[EXPORT] Error: " + e.getMessage() + "\n");
-                }
-            }).start();
-        }
+        if (chooser.showSaveDialog(mainPanel) != JFileChooser.APPROVE_OPTION) return;
+
+        String path = chooser.getSelectedFile().getAbsolutePath();
+        new Thread(() -> {
+            try {
+                appendResult("[EXPORT] saved to " + ReportExporter.export(lastResults, path) + "\n");
+            } catch (Exception e) {
+                appendResult("[EXPORT] error: " + e.getMessage() + "\n");
+            }
+        }).start();
     }
 
     private void runCompare() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Select previous SecHeaderScout report");
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select a previous SecHeaderScout report");
 
-        int result = fileChooser.showOpenDialog(mainPanel);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            String path = fileChooser.getSelectedFile().getAbsolutePath();
-            new Thread(() -> {
-                try {
-                    appendResult("\n[COMPARE] Loading report: " + path + "\n");
-                    ReportComparator comparator = new ReportComparator(api, headerChecker);
-                    List<ReportComparator.ComparisonResult> comparisons = comparator.compare(path);
+        if (chooser.showOpenDialog(mainPanel) != JFileChooser.APPROVE_OPTION) return;
 
-                    appendResult("\n[COMPARISON RESULTS]\n");
+        String path = chooser.getSelectedFile().getAbsolutePath();
+        new Thread(() -> {
+            try {
+                appendResult("\n[COMPARE] loading " + path + "\n");
+                List<ReportComparator.ComparisonResult> comparisons =
+                        new ReportComparator(api, headerChecker).compare(path);
 
-                    for (ReportComparator.ComparisonResult comp : comparisons) {
-                        appendResult("\n" + comp.getUrl() + "\n");
+                appendResult("\n[COMPARISON]\n");
 
-                        comp.getFixed().forEach(h ->
-                                appendResult("  FIXED         -> " + h + "\n")
-                        );
-                        comp.getStillMissing().forEach(h ->
-                                appendResult("  STILL MISSING -> " + h + "\n")
-                        );
-                        comp.getNewIssues().forEach(h ->
-                                appendResult("  NEW ISSUE     -> " + h + "\n")
-                        );
+                for (ReportComparator.ComparisonResult c : comparisons) {
+                    appendResult("\n" + c.getUrl() + "\n");
+                    c.getFixed().forEach(h        -> appendResult("  FIXED         -> " + h + "\n"));
+                    c.getStillMissing().forEach(h -> appendResult("  STILL MISSING -> " + h + "\n"));
+                    c.getNewIssues().forEach(h    -> appendResult("  NEW ISSUE     -> " + h + "\n"));
 
-                        if (comp.getFixed().isEmpty() &&
-                                comp.getStillMissing().isEmpty() &&
-                                comp.getNewIssues().isEmpty()) {
-                            appendResult("  No changes\n");
-                        }
-                    }
-
-                    appendResult("\n[COMPARE DONE]\n");
-
-                } catch (Exception e) {
-                    appendResult("[COMPARE] Error: " + e.getMessage() + "\n");
+                    if (c.getFixed().isEmpty() && c.getStillMissing().isEmpty() && c.getNewIssues().isEmpty())
+                        appendResult("  no changes\n");
                 }
-            }).start();
-        }
+
+                appendResult("\n[COMPARE DONE]\n");
+
+            } catch (Exception e) {
+                appendResult("[COMPARE] error: " + e.getMessage() + "\n");
+            }
+        }).start();
     }
 
+    //  markdown 
 
     private String buildMarkdownReport(List<ScanResult> results) {
         if (results == null || results.isEmpty()) return "No results to copy.";
 
         StringBuilder md = new StringBuilder();
 
-
         for (ScanResult result : results) {
-            // skip completely clean results to keep the report focused
             if (result.isClean()) continue;
 
-            String urlLabel = UrlClassifier.getLabel(result.getUrlType());
+            String label = UrlClassifier.getLabel(result.getUrlType());
 
             md.append("#### ").append(result.getUrl());
-            if (!urlLabel.isEmpty()) {
-                md.append(" `").append(urlLabel.replace("⚠ ", "").trim()).append("`");
-            }
+            if (!label.isEmpty())
+                md.append(" `").append(label.replace("[", "").replace("]", "")).append("`");
             md.append("\n\n");
 
             if (!result.getMissingHeaders().isEmpty()) {
-                md.append("- Missing Headers\n");
-                for (String header : result.getMissingHeaders()) {
-                    md.append("\t - ").append(header).append("\n");
-                }
+                md.append("**Missing**\n\n");
+                for (String header : result.getMissingHeaders())
+                    md.append("* ").append(header).append("\n");
                 md.append("\n");
             }
 
             if (!result.getMisconfiguredHeaders().isEmpty()) {
-                md.append("- Misconfigured Headers\n");
-                for (String issue : result.getMisconfiguredHeaders()) {
-
-                    md.append("\t - ").append(issue).append("\n");
-
-                }
+                md.append("**Misconfigured**\n\n");
+                for (String issue : result.getMisconfiguredHeaders())
+                    md.append("* ").append(cleanIssue(issue)).append("\n");
                 md.append("\n");
             }
 
             md.append("---\n\n");
         }
 
-        return md.toString();
+        return md.toString().isBlank() ? "No findings to copy." : md.toString();
+    }
+
+    // cuts everything after the arrow so the report reads as a statement
+    // "Cache-Control: missing 'no-store' —> the body is written to disk"
+    //   becomes "Cache-Control: missing 'no-store'"
+    private String cleanIssue(String issue) {
+        int arrow = issue.indexOf("—>");
+        if (arrow == -1) arrow = issue.indexOf("->");
+        String cleaned = (arrow == -1) ? issue : issue.substring(0, arrow);
+        return cleaned.trim().replaceAll("\\s+", " ");
+    }
+
+    // helpers
+
+    private void toClipboard(String text) {
+        Toolkit.getDefaultToolkit().getSystemClipboard()
+                .setContents(new StringSelection(text), null);
     }
 
     private void appendResult(String text) {

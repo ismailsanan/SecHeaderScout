@@ -9,23 +9,24 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Loads a previous SecHeaderScout HTML report re-scans the same URLs,
- * and compares old findings against new findings.
+ * loads a previous SecHeaderScout HTML report, rescans the same URLs
+ * and reports what changed
+ *
  */
 public class ReportComparator {
 
-    private static final Pattern URL_BLOCK_PATTERN =
-            Pattern.compile("<div class='url-block[^']*'>(.*?)</div>\\s*(?=<div class='url-block|</body>)", Pattern.DOTALL);
+    // one chunk per URL, lookahead stops at the next block so nested divs dont break it
+    private static final Pattern URL_BLOCK = Pattern.compile(
+            "<div class='url-block[^']*'>(.*?)</div>\\s*(?=<div class='url-block|</body>)",
+            Pattern.DOTALL);
 
-    // matches the URL itself inside a block
-    // <div class='url'>https://example.com/ <span class='label'>...</span></div>
-    private static final Pattern URL_PATTERN =
-            Pattern.compile("<div class='url'>(.*?)(?:\\s*<span|</div>)", Pattern.DOTALL);
+    // the URL sits inside a span for the method and may be followed by a label span
+    private static final Pattern URL = Pattern.compile(
+            "<div class='url'>(?:<span class='method'>[^<]*</span>)?([^<]+)",
+            Pattern.DOTALL);
 
-    // matches each missing header line
-    // <div class='missing'>MISSING &#8594; content-security-policy | Recommended: ...</div>
-    private static final Pattern MISSING_PATTERN =
-            Pattern.compile("MISSING\\s*(?:&#8594;|&rarr;|->|→)\\s*([^<|]+)");
+    private static final Pattern MISSING = Pattern.compile(
+            "MISSING\\s*(?:&#8594;|&rarr;|->|—>)\\s*([^<|]+)");
 
     private final MontoyaApi api;
     private final HeaderChecker headerChecker;
@@ -38,38 +39,33 @@ public class ReportComparator {
     public List<ComparisonResult> compare(String oldReportPath) throws IOException {
 
         String html = Files.readString(Path.of(oldReportPath));
-
         List<ComparisonResult> comparisons = new ArrayList<>();
 
-        Matcher urlBlockMatcher = URL_BLOCK_PATTERN.matcher(html);
+        Matcher blocks = URL_BLOCK.matcher(html);
 
-        while (urlBlockMatcher.find()) {
+        while (blocks.find()) {
+            String body = blocks.group(1);
 
-            String blockBody = urlBlockMatcher.group(1);
-
-            Matcher urlMatcher = URL_PATTERN.matcher(blockBody);
+            Matcher urlMatcher = URL.matcher(body);
             if (!urlMatcher.find()) continue;
 
             String url = urlMatcher.group(1).trim();
             if (url.isEmpty()) continue;
 
-            // extract old missing headers from this block
             List<String> oldMissing = new ArrayList<>();
-            Matcher missingMatcher = MISSING_PATTERN.matcher(blockBody);
-            while (missingMatcher.find()) {
-                oldMissing.add(missingMatcher.group(1).trim().toLowerCase());
-            }
+            Matcher m = MISSING.matcher(body);
+            while (m.find()) oldMissing.add(m.group(1).trim().toLowerCase());
 
-            api.logging().logToOutput("[COMPARE] Rescanning: " + url +
-                    " (previously " + oldMissing.size() + " missing)");
+            api.logging().logToOutput("[COMPARE] rescanning " + url
+                    + " (was missing " + oldMissing.size() + ")");
 
-            ScanResult newResult = headerChecker.checkHeaders(url);
+            // scanUrl not checkHeaders, otherwise /logout gets rescanned as /
+            ScanResult fresh = headerChecker.scanUrl(url);
 
-            comparisons.add(new ComparisonResult(url, oldMissing, newResult));
+            comparisons.add(new ComparisonResult(url, oldMissing, fresh));
         }
 
-        api.logging().logToOutput("[COMPARE] Parsed " + comparisons.size() + " URLs from report");
-
+        api.logging().logToOutput("[COMPARE] parsed " + comparisons.size() + " URLs from the report");
         return comparisons;
     }
 
@@ -85,25 +81,23 @@ public class ReportComparator {
             this.newResult = newResult;
         }
 
-        public String getUrl() {
-            return url;
-        }
+        public String getUrl() { return url; }
 
-       // was missing before, present now
+        // was missing, present now
         public List<String> getFixed() {
             return oldMissing.stream()
                     .filter(h -> !newResult.getMissingHeaders().contains(h))
                     .toList();
         }
 
-      // was missing before, still missing now
+        // was missing, still missing
         public List<String> getStillMissing() {
             return oldMissing.stream()
                     .filter(h -> newResult.getMissingHeaders().contains(h))
                     .toList();
         }
 
-     // was present before, missing now
+        // was fine, missing now
         public List<String> getNewIssues() {
             return newResult.getMissingHeaders().stream()
                     .filter(h -> !oldMissing.contains(h))

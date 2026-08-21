@@ -3,84 +3,109 @@ import burp.api.montoya.http.message.HttpHeader;
 import java.util.ArrayList;
 import java.util.List;
 
-// CORS headers need to be checked together as a group
-// checking them one at a time misses the dangerous combinations
-// for example ACAO: * alone is bad but ACAO: * + ACAC: true is a misconfiguration signal
-
-// and reflected origin + ACAC: true is the most dangerous combo
+/**
+ * CORS has to be evaluated as a group, the dangerous cases only appear
+ * when two headers are combined
+ *
+ * the four contexts below are OWASP's own from the Secure Headers Project
+ * "Prevent CORS misconfiguration issues" section
+ *
+ *   public   without auth  —> ACAO: *        + ACAC: false   valid
+ *   public   with auth     —> impossible, browsers reject * with credentials
+ *   restricted without auth—> ACAO: <allowed> + ACAC: false   valid
+ *   restricted with auth   —> ACAO: <allowed> + ACAC: true    valid but must not mirror Origin
+ */
 public class CORSChecker {
 
     private static final String ACAO  = "access-control-allow-origin";
     private static final String ACAC  = "access-control-allow-credentials";
     private static final String ACAM  = "access-control-allow-methods";
     private static final String ACAH  = "access-control-allow-headers";
+    private static final String ACEH  = "access-control-expose-headers";
     private static final String ACMAX = "access-control-max-age";
 
-    // takes the full response header list so we can check dangerous combinations
-    public static List<String> check(List<HttpHeader> responseHeaders) {
+    public static List<String> check(List<HttpHeader> responseHeaders, ScanContext ctx) {
         List<String> issues = new ArrayList<>();
 
-        String acao  = getHeaderValue(responseHeaders, ACAO);
-        String acac  = getHeaderValue(responseHeaders, ACAC);
-        String acam  = getHeaderValue(responseHeaders, ACAM);
-        String acah  = getHeaderValue(responseHeaders, ACAH);
-        String acmax = getHeaderValue(responseHeaders, ACMAX);
+        String acao = value(responseHeaders, ACAO);
+        if (acao == null) return issues;   // no CORS, nothing to say
 
-        // no CORS headers present ->  nothing to check
-        if (acao == null) return issues;
+        String acac  = value(responseHeaders, ACAC);
+        String acam  = value(responseHeaders, ACAM);
+        String acah  = value(responseHeaders, ACAH);
+        String aceh  = value(responseHeaders, ACEH);
+        String acmax = value(responseHeaders, ACMAX);
 
-        // wildcard origin —> any origin can read the response
-        if (acao.equals("*"))
-            issues.add("CORS: Access-Control-Allow-Origin is '*' —> any origin can read this response");
+        boolean credentialed = "true".equals(acac);
+        boolean wildcard     = acao.equals("*");
 
+<<<<<<< Updated upstream
         // null origin is dangerous — sandboxed iframes and file:// URIs use null
+=======
+        // a wildcard on a font or CDN file is the intended configuration
+        // a wildcard on an application endpoint is a finding
+        if (wildcard && ctx.urlType() != UrlClassifier.UrlType.STATIC) {
+            if (ctx.setsCookie() || ctx.isSensitive())
+                issues.add("CORS: Access-Control-Allow-Origin '*' on an authenticated endpoint —> any origin can read this response");
+            else
+                issues.add("CORS: Access-Control-Allow-Origin '*' —> any origin can read this response, confirm the data is genuinely public");
+        }
+
+        // null is reachable from sandboxed iframes, file:// and data: documents
+        // an attacker page can trivially produce Origin: null
+>>>>>>> Stashed changes
         if (acao.equals("null"))
-            issues.add("CORS: Access-Control-Allow-Origin is 'null' —> exploitable via sandboxed iframes or file:// URIs");
+            issues.add("CORS: Access-Control-Allow-Origin 'null' —> reachable from a sandboxed iframe, an attacker page can read this response");
 
-        // wildcard + credentials —> browsers reject this but it signals a bad config
-        if (acao.equals("*") && "true".equals(acac))
-            issues.add("CORS: Access-Control-Allow-Origin '*' with Allow-Credentials 'true' —> misconfiguration, browsers reject this combination");
+        // browsers block this outright, seeing it means the config was never tested
+        if (wildcard && credentialed)
+            issues.add("CORS: '*' with Allow-Credentials 'true' —> browsers reject this combination, the endpoint is misconfigured");
 
-        // specific origin + credentials —> flag for manual verification of reflected origin
-        if (acac != null && acac.equals("true") && !acao.equals("*"))
-            issues.add("CORS: Access-Control-Allow-Credentials is 'true' with origin '" + acao + "' —> verify the server does not dynamically reflect the Origin header");
+        // the highest value CORS finding, OWASP explicitly warns against mirroring
+        // a single response cannot prove reflection so this is flagged for confirmation
+        if (credentialed && !wildcard)
+            issues.add("CORS: Allow-Credentials 'true' with origin '" + acao
+                    + "' —> resend with Origin: https://evil.example to confirm the server is not mirroring the request Origin, if it is this is an account takeover path");
 
-        // wildcard methods —> accepts anything including DELETE PUT PATCH
+        // an origin that is not a bare scheme+host is usually a parsing bug
+        if (!wildcard && !acao.equals("null")
+                && !acao.startsWith("http://") && !acao.startsWith("https://"))
+            issues.add("CORS: Access-Control-Allow-Origin '" + acao + "' is not a valid origin —> likely a string concatenation bug in the origin allowlist");
+
         if (acam != null) {
             if (acam.equals("*"))
-                issues.add("CORS: Access-Control-Allow-Methods is '*' —> all HTTP methods permitted, should be an explicit list");
+                issues.add("CORS: Access-Control-Allow-Methods '*' —> every method permitted, OWASP recommends an explicit list");
 
-            // state-changing methods + credentials —> CSRF risk
-            if (acac != null && acac.equals("true")) {
+            if (credentialed) {
                 if (acam.contains("delete"))
-                    issues.add("CORS: DELETE method allowed with credentials —> high risk for authenticated state change");
-
+                    issues.add("CORS: DELETE permitted with credentials —> cross origin authenticated deletion if the Origin check is weak");
                 if (acam.contains("put") || acam.contains("patch"))
-                    issues.add("CORS: PUT/PATCH methods allowed with credentials —> verify CSRF protections are in place");
+                    issues.add("CORS: PUT/PATCH permitted with credentials —> cross origin state change, confirm CSRF defences");
             }
         }
 
-        // wildcard headers —> client can send anything including custom auth headers
         if (acah != null && acah.equals("*"))
-            issues.add("CORS: Access-Control-Allow-Headers is '*' —> any header allowed, should be an explicit list");
+            issues.add("CORS: Access-Control-Allow-Headers '*' —> arbitrary headers accepted, can defeat header based authorisation checks");
 
-        // preflight cache longer than 24 hours —> policy changes will be slow to take effect
+        // exposing auth material to script on other origins
+        if (aceh != null && (aceh.contains("authorization") || aceh.contains("set-cookie")))
+            issues.add("CORS: Access-Control-Expose-Headers exposes '" + aceh + "' —> credential bearing headers readable cross origin");
+
         if (acmax != null) {
             try {
-                int maxAge = Integer.parseInt(acmax.trim());
+                long maxAge = Long.parseLong(acmax.trim());
+                // OWASP proposes 3600 for public, 10 for restricted
                 if (maxAge > 86400)
-                    issues.add("CORS: Access-Control-Max-Age is " + maxAge + "s —> preflight cached for more than 24 hours");
+                    issues.add("CORS: Access-Control-Max-Age " + maxAge + "s —> preflight cached over 24 hours, a policy fix will not reach clients for that long");
             } catch (NumberFormatException e) {
-                issues.add("CORS: Access-Control-Max-Age value '" + acmax + "' could not be parsed");
+                issues.add("CORS: Access-Control-Max-Age '" + acmax + "' could not be parsed");
             }
         }
 
         return issues;
     }
 
-    // pulls a specific header value from the list case insensitively
-    // returns null if not present
-    private static String getHeaderValue(List<HttpHeader> headers, String name) {
+    private static String value(List<HttpHeader> headers, String name) {
         return headers.stream()
                 .filter(h -> h.name().trim().equalsIgnoreCase(name))
                 .map(h -> h.value().trim().toLowerCase())
