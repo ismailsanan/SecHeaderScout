@@ -13,16 +13,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 
-import static io.github.ismailsanan.secheaderscout.model.Results.result;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.result;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Regression tests for findings from the security and architecture reviews. */
-class ReviewFindingsRegressionTest {
+/** Security regression tests: report parsing, Markdown injection and log redaction. */
+class SecurityRegressionTest {
 
-    /** S-1: crafted reports with unterminated blocks used to take minutes (quadratic regex). */
+    /** SEC-8: crafted reports with unterminated blocks used to take minutes (quadratic regex). */
     @Test
     void parserIsLinearOnUnterminatedSections() {
         String current = "<section class=\"url-block\" data-url=\"x\">".repeat(25_000);   // ~1 MB, no </section>
@@ -52,7 +52,7 @@ class ReviewFindingsRegressionTest {
     @Test
     void parserStillReadsWellFormedReports() {
         String html = ReportExporter.render(List.of(
-                result("https://a.example/x?y=\"1\"", List.of(io.github.ismailsanan.secheaderscout.model.Results.missing("Referrer-Policy")), Set.of()),
+                result("https://a.example/x?y=\"1\"", List.of(io.github.ismailsanan.secheaderscout.testsupport.Results.missing("Referrer-Policy")), Set.of()),
                 result("https://b.example/", List.of(), Set.of())), "v", ZonedDateTime.now());
         List<ReportParser.PreviousResult> parsed = ReportParser.parse(html);
         assertEquals(2, parsed.size());
@@ -60,7 +60,7 @@ class ReviewFindingsRegressionTest {
         assertEquals(Set.of("referrer-policy"), parsed.get(0).missingHeaders());
     }
 
-    /** S-3: server-controlled text must not inject HTML, links or images into copied Markdown. */
+    /** SEC-10: server-controlled text must not inject HTML, links or images into copied Markdown. */
     @Test
     void markdownEscapesServerControlledText() {
         String evil = "<img src=https://attacker.example/t.gif>[click](javascript:alert(1)) ![x](y) *b* `c` | d";
@@ -79,7 +79,7 @@ class ReviewFindingsRegressionTest {
         assertTrue(md.contains("X-Content-Type-Options") || md.contains("name"), "readable text kept: " + md);
     }
 
-    /** S-4: tokens in query strings must not end up in Burp's extension log. */
+    /** SEC-7: tokens in query strings must not end up in Burp's extension log. */
     @Test
     void logRedactsQueryAndFragment() {
         assertEquals("https://app/reset?[redacted]", Log.redact("https://app/reset?token=SECRET"));
@@ -90,7 +90,7 @@ class ReviewFindingsRegressionTest {
 
     @Test
     void comparisonFormatterListsAllCategories() {
-        ScanResult now = result("https://e.example/", List.of(io.github.ismailsanan.secheaderscout.model.Results.missing("Permissions-Policy")),
+        ScanResult now = result("https://e.example/", List.of(io.github.ismailsanan.secheaderscout.testsupport.Results.missing("Permissions-Policy")),
                 Set.of("referrer-policy"));
         String text = TextFormatter.comparison(List.of(new Comparison("https://e.example/",
                 Set.of("referrer-policy", "cache-control"), now)), true);

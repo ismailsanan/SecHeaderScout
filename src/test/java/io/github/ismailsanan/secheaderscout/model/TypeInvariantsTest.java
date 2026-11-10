@@ -10,12 +10,12 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 
-import static io.github.ismailsanan.secheaderscout.model.Results.missing;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.missing;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/** Type-design review: contradictory states are unrepresentable. */
+/** SEC-11: contradictory states are unrepresentable. */
 class TypeInvariantsTest {
 
     private static final UrlClassifier.UrlType N = UrlClassifier.UrlType.NORMAL;

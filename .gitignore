@@ -23,15 +23,47 @@ out/
 .DS_Store
 Thumbs.db
 
-# Local AI / analysis tooling: never part of the published project
+# AI assistant / agent tooling: local only, never published
+# Claude
 .claude/
+.claude*
 CLAUDE.md
 CLAUDE.local.md
+**/CLAUDE.md
+# MCP servers and generic agent instructions
 .mcp.json
+.mcp/
 AGENTS.md
+AGENT.md
+**/AGENTS.md
+# Cursor, Windsurf, Cline, Roo, Continue, Aider, Kiro, Junie, Augment, Codeium, Tabnine
+.cursor/
+.cursorrules
+.cursorignore
+.windsurf/
+.windsurfrules
+.cline/
+.clinerules
+.roo/
+.roomodes
+.continue/
+.aider*
+.kiro/
+.junie/
+.augment/
+.codeium/
+.tabnine/
+# OpenAI Codex, Gemini, GitHub Copilot, OpenCode
+.codex/
+.gemini/
+GEMINI.md
+.github/copilot-instructions.md
+.github/prompts/
+.opencode/
+# Knowledge graphs, session histories and agent memory
 graphify-out/
 .graphify*
-.cursor/
-.aider*
-.continue/
-.codex/
+.specstory/
+.serena/
+.memory/
+*.chat.md

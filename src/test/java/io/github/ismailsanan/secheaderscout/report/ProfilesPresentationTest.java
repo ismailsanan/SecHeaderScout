@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import static io.github.ismailsanan.secheaderscout.model.Results.missing;
-import static io.github.ismailsanan.secheaderscout.model.Results.result;
-import static io.github.ismailsanan.secheaderscout.model.Results.weak;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.missing;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.result;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.weak;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

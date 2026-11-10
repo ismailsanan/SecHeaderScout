@@ -1,10 +1,11 @@
-package io.github.ismailsanan.secheaderscout.model;
+package io.github.ismailsanan.secheaderscout.testsupport;
 
 import io.github.ismailsanan.secheaderscout.engine.Confidence;
 import io.github.ismailsanan.secheaderscout.engine.Finding;
 import io.github.ismailsanan.secheaderscout.engine.FindingType;
 import io.github.ismailsanan.secheaderscout.engine.Severity;
 import io.github.ismailsanan.secheaderscout.engine.UrlClassifier;
+import io.github.ismailsanan.secheaderscout.model.ScanResult;
 
 import java.util.List;
 import java.util.Set;

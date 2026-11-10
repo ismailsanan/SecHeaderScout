@@ -35,8 +35,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Regression tests for the /simplify pass (efficiency and redaction changes). */
-class SimplifyPassRegressionTest {
+/** Regression tests for efficiency and redaction behaviour (bounded work, no secrets in logs). */
+class EfficiencyAndRedactionRegressionTest {
 
     @BeforeAll
     static void install() {

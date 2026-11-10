@@ -14,16 +14,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static io.github.ismailsanan.secheaderscout.model.Results.fallback;
-import static io.github.ismailsanan.secheaderscout.model.Results.missing;
-import static io.github.ismailsanan.secheaderscout.model.Results.result;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.fallback;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.missing;
+import static io.github.ismailsanan.secheaderscout.testsupport.Results.result;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Regression tests for the report / score / comparison fix pass. */
-class ReportFixPassRegressionTest {
+/** Regression tests for the report, score and comparison (incomplete results, fallback, escaping). */
+class ReportRegressionTest {
 
     private static final ZonedDateTime NOW = ZonedDateTime.parse("2026-11-08T10:00:00Z");
     private static final String SECTION = "<section class=\"url-block\" data-url=\"";

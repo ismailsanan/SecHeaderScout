@@ -221,7 +221,7 @@ Design rules:
   extension's unloading handler, which also cancels running scans and clears passive-check state.
 - Swing components are touched only on the EDT. Results are published as immutable snapshots.
 
-See [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for the full, traceable requirement list.
+See [`docs/SPECIFICATION.md`](docs/SPECIFICATION.md) for the functional and non-functional requirements, architecture and a short user and developer guide.
 
 ## Known limitations
 
