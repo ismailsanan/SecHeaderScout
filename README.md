@@ -32,7 +32,8 @@ SecHeaderScout has two independent parts:
 - **Deep Scan grouping**: responses already in the site map are grouped by host and path (`/api/*`), so a large
   site reads as a few rows ("`/api/*`, 40 URLs, missing: ..."), with login/logout/payment/admin groups first.
 - **Copy for report**: one click copies the results as Markdown grouped by host (**Missing:** /
-  **Misconfigured:** bullets), ready to paste into a pentest report.
+  **Misconfigured:** bullets, each problem with a one-line "what is lacking and why"), ready to paste into a
+  pentest report.
 - **Transparent HTTP fallback**: if HTTPS fails, the result is clearly marked as obtained over HTTP, with
   the original HTTPS status, in the table, details, Markdown and report. It can be switched off.
 - **Overall risk score** (average per URL, so it does not grow with the number of pages scanned), **critical URL** highlighting (login, logout, admin, API, payment), with editable **endpoint types** (saved in the Burp project) for URLs the keywords miss.
@@ -82,7 +83,7 @@ X-DNS-Prefetch-Control, X-Frame-Options, X-Permitted-Cross-Domain-Policies) plus
 
 ## Building from source
 
-Requirements: JDK 17+, Maven 3.9+.
+Requirements: a full JDK 17+ (not just a Java runtime), Maven 3.9+.
 
 ```bash
 git clone https://github.com/ismailsanan/SecHeaderScout
@@ -92,6 +93,11 @@ mvn clean package        # compiles, runs the test suite, builds the JAR
 
 The JAR is written to `target/SecHeaderScout.jar`. It has no runtime dependencies (the Montoya API is
 `provided` by Burp).
+
+If the build fails with `release version 17 not supported`, Maven is running on a Java *runtime* without
+the compiler files (on Debian/Kali, e.g. `openjdk-25-jre` installed but not `openjdk-25-jdk`). Check with
+`mvn -v`, then install the matching JDK (`sudo apt install openjdk-25-jdk`) or point Maven at a full JDK:
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 mvn clean package`.
 
 ## Usage
 
@@ -103,7 +109,8 @@ appear under **Target → Site map → Issues** and in the **Dashboard**. They c
 1. **Refresh from Burp** loads hosts from the site map (in the background; it can be cancelled), or add a
    custom target (`host`, `host:port`, `host/path` or a full `http(s)://` URL).
 
-   Select hosts and press **Delete** (or Backspace) to remove them from the list.
+   Select hosts and press **Delete** (or Backspace) to remove them from the list. Type in **Search** (or just
+   start typing in the list) to show only the targets containing that text; Esc clears it.
 
    **Endpoint types** (bottom panel, *Endpoint types* tab): which paths count as logout, login, admin, payment or
    API. Some checks depend on this: Clear-Site-Data is only expected on **logout** responses, and Cache-Control is
@@ -141,8 +148,10 @@ appear under **Target → Site map → Issues** and in the **Dashboard**. They c
        *names* are compared, not values, so per-request CSP nonces do not split groups.
      - **Priority**: groups containing logout, login, payment or admin endpoints are listed first (and labelled),
        then by severity and size. The **Type** column shows LOGOUT / LOGIN / PAYMENT / ADMIN for those groups.
-3. Click a row to see its details. The **By URL** tab (the default) lists every analysed URL; the **By profile**
-   tab shows the Deep Scan groups, each with its missing headers, misconfigurations and URLs (query strings hidden).
+3. Click a row to see its details. The **By URL** tab (the default) lists every analysed URL with its number of
+   missing and misconfigured headers; the **By profile** tab shows the Deep Scan groups, each with its missing
+   headers, misconfigurations and URLs (query strings hidden). The details pane lists each misconfigured header
+   once, with its problems and a short "what is lacking and why" under it.
 4. **Copy for report** copies all current results as Markdown you can paste straight into a pentest report,
    grouped by host:
 
@@ -152,14 +161,18 @@ appear under **Target → Site map → Issues** and in the **Dashboard**. They c
    **Missing:**
 
    - Content-Security-Policy
-   - Referrer-Policy (1 of 2 URLs)
+   - Referrer-Policy
 
    **Misconfigured:**
 
-   - X-Frame-Options header has an invalid value: `ALLOWALL`
+   - Strict-Transport-Security
+     - Max-age is short: max-age is 300 (5 minutes), should be at least 31536000 (one year); users can be downgraded to HTTP
+   - Cache-Control
+     - Does not prevent storage of sensitive response: lacks the 'no-store' directive; the browser may keep this sensitive response on disk
    ```
 
-   Each header or issue appears once per host; "(n of m URLs)" is added when only some URLs are affected.
+   Each header appears once per host, with its problems listed under it. No URLs or raw header values are
+   included, so the text stays short.
    HTTP-fallback warnings, incomplete evaluations and URLs that could not be analysed are included, and
    server-supplied text is escaped so it cannot inject links, images or HTML.
 
