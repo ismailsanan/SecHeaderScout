@@ -60,7 +60,7 @@ public final class CorsRule implements HeaderRule {
                     "The response sends more than one allowed origin. Browsers reject this and fail the CORS check, "
                             + "which suggests the policy is generated incorrectly (for example by appending the "
                             + "request Origin to a fixed value).",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("several allowed origins; browsers reject the response"));
             return out;
         }
         if (acao.equals("null")) {
@@ -68,7 +68,7 @@ public final class CorsRule implements HeaderRule {
                     "Access-Control-Allow-Origin is 'null'. Sandboxed iframes and some redirects send the 'null' "
                             + "origin, so any attacker can obtain it and read this response"
                             + (credentials ? " with the victim's credentials." : "."),
-                    credentials ? Severity.MEDIUM : Severity.LOW, Confidence.FIRM));
+                    credentials ? Severity.MEDIUM : Severity.LOW, Confidence.FIRM).withSummary("'null' origin allowed; any attacker can send it" + (credentials ? ", credentials included" : "")));
         } else if (acao.equals("*")) {
             if (credentials) {
                 out.add(cors(ACAC, FindingType.CONFLICT, "CORS: wildcard origin combined with credentials",
@@ -76,20 +76,20 @@ public final class CorsRule implements HeaderRule {
                         "Access-Control-Allow-Origin '*' with Access-Control-Allow-Credentials 'true' is rejected "
                                 + "by browsers, so credentialed requests fail. It indicates a misunderstanding of "
                                 + "the policy; check whether other endpoints reflect the origin instead.",
-                        Severity.INFORMATION, Confidence.CERTAIN));
+                        Severity.INFORMATION, Confidence.CERTAIN).withSummary("'*' with credentials; browsers reject it, a sign of a broken policy"));
             } else {
                 out.add(cors(ACAO, FindingType.WEAK, "CORS: any origin can read the response", acao,
                         "Access-Control-Allow-Origin is '*', so any site can read this response without "
                                 + "credentials. This is fine for public data; check that the response contains "
                                 + "nothing sensitive, for example data that depends on network position (intranet).",
-                        Severity.INFORMATION, Confidence.TENTATIVE));
+                        Severity.INFORMATION, Confidence.TENTATIVE).withSummary("'*'; any site can read this response"));
             }
         } else if (credentials) {
             out.add(cors(ACAC, FindingType.WEAK, "CORS: credentials allowed for specific origin", acao,
                     "Credentials are allowed for origin '" + acao + "'. If the server reflects arbitrary Origin "
                             + "values here, any site can read authenticated responses. Verify by resending the "
                             + "request with a different Origin header (e.g. in Repeater).",
-                    Severity.INFORMATION, Confidence.TENTATIVE));
+                    Severity.INFORMATION, Confidence.TENTATIVE).withSummary("credentials allowed for '" + acao + "'; check the origin is not reflected"));
         }
 
         String methods = headers.first(ACAM).map(v -> v.toLowerCase(Locale.ROOT)).orElse(null);
@@ -98,13 +98,13 @@ public final class CorsRule implements HeaderRule {
             out.add(cors(ACAM, FindingType.WEAK, "CORS: state-changing methods allowed with credentials", methods,
                     "State-changing methods (" + methods + ") are allowed cross-origin with credentials. Make sure "
                             + "the allowed origins are trusted and that these endpoints have CSRF protection.",
-                    Severity.INFORMATION, Confidence.TENTATIVE));
+                    Severity.INFORMATION, Confidence.TENTATIVE).withSummary(methods + " allowed with credentials; make sure CSRF protection is in place"));
         }
         if (headers.first(ACAH).map(v -> v.trim().equals("*")).orElse(false) && !credentials) {
             out.add(cors(ACAH, FindingType.WEAK, "CORS: any request header allowed", "*",
                     "Access-Control-Allow-Headers is '*', so cross-origin requests may carry any header. Prefer "
                             + "an explicit list.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("'*'; cross-origin requests may carry any header"));
         }
         return out;
     }

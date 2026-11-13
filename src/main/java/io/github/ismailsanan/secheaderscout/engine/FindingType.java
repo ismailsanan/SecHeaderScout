@@ -16,4 +16,15 @@ public enum FindingType {
     public boolean isMissing() {
         return this == MISSING;
     }
+
+    /** Name shown to users; {@link #WEAK} reads as "Misconfiguration" in every view. */
+    public String label() {
+        return switch (this) {
+            case MISSING -> "Missing";
+            case INVALID -> "Invalid";
+            case WEAK -> "Misconfiguration";
+            case DEPRECATED -> "Deprecated";
+            case CONFLICT -> "Conflict";
+        };
+    }
 }

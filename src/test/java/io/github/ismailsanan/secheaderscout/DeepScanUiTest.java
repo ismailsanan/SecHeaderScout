@@ -273,4 +273,79 @@ class DeepScanUiTest {
         assertTrue(sync.getToolTipText().contains("validated"));
         unload.get().extensionUnloaded();
     }
+
+    /** Issue #7: the filter narrows the target list, keeps selections and typing in the list feeds it. */
+    @Test
+    void theFilterFieldNarrowsTheTargetList() throws Exception {
+        new SecHeaderScout().initialize(api());
+        Component root = tab.get();
+        JList<?> hosts = find(root, JList.class).get(0);
+        javax.swing.JTextField custom = sibling(root, "Add Custom Target", javax.swing.JTextField.class);
+        javax.swing.JTextField filter = find(hosts.getParent().getParent().getParent(), javax.swing.JTextField.class)
+                .get(0);
+        SwingUtilities.invokeAndWait(() -> {
+            for (String t : List.of("shop.example", "api.example", "admin.test")) {
+                custom.setText(t);
+                button(root, "Add Custom Target").doClick();
+            }
+            hosts.setSelectedIndices(new int[]{0, 1});
+            filter.setText("EXAMPLE");
+        });
+        assertEquals(2, hosts.getModel().getSize());
+        assertEquals(List.of("shop.example", "api.example"), hosts.getSelectedValuesList(), "selection kept");
+
+        SwingUtilities.invokeAndWait(() -> filter.setText("adm"));
+        assertEquals(1, hosts.getModel().getSize());
+        assertEquals("admin.test", hosts.getModel().getElementAt(0));
+        assertTrue(hosts.getSelectedValuesList().isEmpty(), "hidden targets are not scanned");
+
+        SwingUtilities.invokeAndWait(() -> filter.setText("p"));
+        assertEquals(List.of("shop.example", "api.example"), modelItems(hosts));
+
+        SwingUtilities.invokeAndWait(() -> {
+            custom.setText("new.test");
+            button(root, "Add Custom Target").doClick();
+        });
+        assertEquals("", filter.getText(), "adding a target clears the filter so it is visible");
+        assertEquals(4, hosts.getModel().getSize());
+        unload.get().extensionUnloaded();
+    }
+
+    private static List<Object> modelItems(JList<?> list) {
+        List<Object> out = new ArrayList<>();
+        for (int i = 0; i < list.getModel().getSize(); i++) {
+            out.add(list.getModel().getElementAt(i));
+        }
+        return out;
+    }
+
+    /** Issue #6: on a short Burp window the controls scroll instead of hiding the results tabs. */
+    @Test
+    void aShortWindowStillShowsTheResultsTabs() throws Exception {
+        new SecHeaderScout().initialize(api());
+        Component root = tab.get();
+        JTabbedPane resultsTabs = find(root, JTabbedPane.class).stream()
+                .filter(t -> t.getTabCount() == 2 && "By URL".equals(t.getTitleAt(0))).findFirst().orElseThrow();
+        SwingUtilities.invokeAndWait(() -> {
+            root.setSize(1600, 500);
+            layOutTree(root);
+        });
+        // the split pane places its divider from a resize event queued by the first layout
+        SwingUtilities.invokeAndWait(() -> {
+            for (int pass = 0; pass < 3; pass++) {
+                layOutTree(root);
+            }
+        });
+        assertTrue(resultsTabs.getHeight() >= 120, "results tabs only " + resultsTabs.getHeight() + "px high");
+        unload.get().extensionUnloaded();
+    }
+
+    private static void layOutTree(Component c) {
+        if (c instanceof Container container) {
+            container.doLayout();
+            for (Component child : container.getComponents()) {
+                layOutTree(child);
+            }
+        }
+    }
 }

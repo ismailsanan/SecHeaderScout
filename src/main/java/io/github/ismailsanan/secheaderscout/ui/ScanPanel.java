@@ -18,6 +18,7 @@ import io.github.ismailsanan.secheaderscout.report.TextFormatter;
 import io.github.ismailsanan.secheaderscout.util.BackgroundTasks;
 import io.github.ismailsanan.secheaderscout.util.Log;
 
+import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -38,20 +39,31 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JViewport;
+import javax.swing.KeyStroke;
+import javax.swing.Scrollable;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,6 +71,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -78,6 +91,8 @@ public final class ScanPanel {
 
     private static final int MAX_LOG_CHARS = 200_000;
     private static final long PROGRESS_INTERVAL_MS = 150;
+    /** Most of the tab height (percent) the controls may take before they scroll; the rest is for results. */
+    private static final int MAX_CONTROLS_SHARE = 45;
 
     private final ManualScanner scanner;
     private final SiteMapSource siteMap;
@@ -90,7 +105,19 @@ public final class ScanPanel {
 
     private final JPanel root = new JPanel(new BorderLayout(8, 8));
     private final DefaultListModel<String> hostModel = new DefaultListModel<>();
-    private final JList<String> hostList = new JList<>(hostModel);
+    private final JList<String> hostList = new JList<>(hostModel) {
+        private static final long serialVersionUID = 1L;
+
+        /** Off: typing in the list goes to the filter field instead of jumping by first letter. */
+        @Override
+        public int getNextMatch(String prefix, int startIndex, javax.swing.text.Position.Bias bias) {
+            return -1;
+        }
+    };
+    /** Every target, in order; {@link #hostModel} shows the ones matching {@link #targetFilter}. EDT-only. */
+    private final List<String> allTargets = new ArrayList<>();
+    private final JTextField targetFilter = new JTextField(24);
+    private final JLabel targetsLabel = new JLabel();
     private final Set<String> customTargets = new LinkedHashSet<>();
     private final ResultsTableModel tableModel = new ResultsTableModel();
     private final JTable table = new JTable(tableModel);
@@ -165,7 +192,7 @@ public final class ScanPanel {
         root.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         // one full-width row per line; GridBagLayout recomputes row heights on every layout (BoxLayout
         // caches them), so a WrapLayout row that wraps onto a second line after a resize gets the room
-        JPanel top = new JPanel(new GridBagLayout());
+        JPanel top = new WidthTrackingPanel(new GridBagLayout());
         GridBagConstraints row = new GridBagConstraints();
         row.gridx = 0;
         row.weightx = 1;
@@ -178,7 +205,7 @@ public final class ScanPanel {
         for (JPanel line : List.of(inputRow(), scanRow(), deepOptionsRow(), resultsActionsRow())) {
             top.add(line, row);
         }
-        root.add(top, BorderLayout.NORTH);
+        root.add(controlsPane(top), BorderLayout.NORTH);
         root.add(resultsPane(), BorderLayout.CENTER);
         root.add(statusBar(), BorderLayout.SOUTH);
         setBusy(false, null);
@@ -199,19 +226,126 @@ public final class ScanPanel {
         return row;
     }
 
+    /**
+     * The controls above the results, in a scroll pane that never takes more than
+     * {@link #MAX_CONTROLS_SHARE}% of the tab's height: on a short Burp window the controls
+     * scroll instead of squeezing the "By URL" / "By profile" results out of view.
+     */
+    private JScrollPane controlsPane(JPanel controls) {
+        JScrollPane pane = new JScrollPane(controls, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                int available = root.getHeight();
+                if (available > 0) {
+                    d.height = Math.min(d.height, available * MAX_CONTROLS_SHARE / 100);
+                }
+                return d;
+            }
+        };
+        pane.setBorder(BorderFactory.createEmptyBorder());
+        pane.getVerticalScrollBar().setUnitIncrement(16);
+        return pane;
+    }
+
     private JPanel targetPanel() {
         hostList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         hostList.setCellRenderer(UiSupport.plain(new DefaultListCellRenderer()));
         UiSupport.onDeleteKey(hostList, this::deleteSelectedHosts);
+        hostList.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                char c = e.getKeyChar();
+                if (c != KeyEvent.CHAR_UNDEFINED && !Character.isISOControl(c)
+                        && !e.isControlDown() && !e.isMetaDown() && !e.isAltDown()) {
+                    targetFilter.setText(targetFilter.getText() + c);
+                    targetFilter.requestFocusInWindow();
+                    e.consume();
+                }
+            }
+        });
+        targetFilter.setToolTipText("Show only targets containing this text (typing in the list also searches; "
+                + "Esc clears)");
+        targetFilter.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                applyTargetFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                applyTargetFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                applyTargetFilter();
+            }
+        });
+        targetFilter.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clear");
+        targetFilter.getActionMap().put("clear", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                targetFilter.setText("");
+            }
+        });
+        // Enter or Down in the filter moves to the list, so a match can be selected from the keyboard
+        targetFilter.addActionListener(e -> focusTargetList());
+        targetFilter.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "toList");
+        targetFilter.getActionMap().put("toList", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                focusTargetList();
+            }
+        });
+
         JScrollPane scroll = new JScrollPane(hostList);
         scroll.setPreferredSize(new Dimension(800, 100));
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(new JLabel("Targets (select one or more):"), BorderLayout.NORTH);
+        JPanel search = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        search.add(new JLabel("Search:"));
+        search.add(targetFilter);
+        JPanel header = new JPanel(new BorderLayout());
+        header.add(targetsLabel, BorderLayout.WEST);
+        header.add(search, BorderLayout.EAST);
+        JPanel panel = new JPanel(new BorderLayout(0, 2));
+        panel.add(header, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
+        updateTargetsLabel();
         return panel;
     }
 
-    /** Removes the selected hosts from the target list (button, Delete or Backspace key). */
+    private void focusTargetList() {
+        if (hostModel.isEmpty()) {
+            return;
+        }
+        if (hostList.isSelectionEmpty()) {
+            hostList.setSelectedIndex(0);
+        }
+        hostList.requestFocusInWindow();
+    }
+
+    /** Shows the targets matching the filter (case-insensitive substring), keeping visible selections. */
+    private void applyTargetFilter() {
+        String query = targetFilter.getText().strip().toLowerCase(Locale.ROOT);
+        List<String> selected = hostList.getSelectedValuesList();
+        List<String> shown = query.isEmpty() ? allTargets
+                : allTargets.stream().filter(t -> t.toLowerCase(Locale.ROOT).contains(query)).toList();
+        hostModel.clear();
+        hostModel.addAll(shown);
+        int[] keep = selected.stream().mapToInt(hostModel::indexOf).filter(i -> i >= 0).toArray();
+        hostList.setSelectedIndices(keep);
+        updateTargetsLabel();
+    }
+
+    private void updateTargetsLabel() {
+        targetsLabel.setText(hostModel.size() == allTargets.size()
+                ? "Targets (select one or more):"
+                : "Targets (" + hostModel.size() + " of " + allTargets.size() + " shown, select one or more):");
+    }
+
     /** Downloads, validates and activates the latest OWASP definitions, after confirmation. */
     private void syncOwaspHeaders() {
         int answer = JOptionPane.showConfirmDialog(root,
@@ -240,11 +374,14 @@ public final class ScanPanel {
         });
     }
 
+    /** Removes the selected hosts from the target list (button, Delete or Backspace key). */
     private void deleteSelectedHosts() {
         for (String selected : hostList.getSelectedValuesList()) {
             hostModel.removeElement(selected);
+            allTargets.remove(selected);
             customTargets.remove(selected);
         }
+        updateTargetsLabel();
     }
 
     private JPanel inputRow() {
@@ -377,6 +514,21 @@ public final class ScanPanel {
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, resultsTabs, bottomTabs);
         split.setResizeWeight(0.6);
+        // the bottom tabs prefer ~500px (Endpoint types); left to preferred sizes, a short window would give
+        // the results only a strip. Let both sides shrink and start at 60% results / 40% details.
+        resultsTabs.setMinimumSize(new Dimension(0, 80));
+        bottomTabs.setMinimumSize(new Dimension(0, 60));
+        split.addComponentListener(new ComponentAdapter() {
+            private boolean placed;
+
+            @Override
+            public void componentResized(ComponentEvent e) {
+                if (!placed && split.getHeight() > 0) {
+                    placed = true;
+                    split.setDividerLocation(0.6);
+                }
+            }
+        });
         return split;
     }
 
@@ -459,11 +611,13 @@ public final class ScanPanel {
             setStatus("Invalid target '" + TextFormatter.abbreviate(target) + "'. Use host, host:port or an http(s) URL.");
             return;
         }
-        if (!hostModel.contains(target)) {
-            hostModel.addElement(target);
+        if (!allTargets.contains(target)) {
+            allTargets.add(target);
         }
         customTargets.add(target);
         input.setText("");
+        targetFilter.setText(""); // the new target must be visible, whatever the filter was
+        applyTargetFilter();
     }
 
     private void refreshHosts() {
@@ -474,12 +628,11 @@ public final class ScanPanel {
             }
             return hosts;
         }, hosts -> {
-            hostModel.clear();
             Set<String> all = new LinkedHashSet<>(hosts);
             all.addAll(customTargets);
-            for (String h : all) {
-                hostModel.addElement(h);
-            }
+            allTargets.clear();
+            allTargets.addAll(all);
+            applyTargetFilter();
             setStatus("Loaded " + hosts.size() + " host(s) from the site map"
                     + (customTargets.isEmpty() ? "." : " plus " + customTargets.size() + " custom target(s)."));
         });
@@ -488,9 +641,11 @@ public final class ScanPanel {
     private List<String> selectedTargets() {
         List<String> selected = hostList.getSelectedValuesList();
         if (selected.isEmpty()) {
-            setStatus(hostList.getModel().getSize() == 0
+            setStatus(allTargets.isEmpty()
                     ? "No targets yet: click \"Refresh from Burp\" (or \"Add Custom Target\"), select one or more "
                     + "hosts, then scan."
+                    : hostModel.isEmpty() ? "No targets match the search \"" + targetFilter.getText().strip()
+                    + "\": change or clear it (Esc), select one or more hosts, then scan."
                     : "No targets selected: select one or more hosts in the list, then scan.");
         }
         return selected;
@@ -768,6 +923,40 @@ public final class ScanPanel {
                 c.setForeground(flagged ? Color.BLACK : table.getForeground());
             }
             return c;
+        }
+    }
+
+    /** A panel that always takes the scroll pane's width, so its button rows wrap instead of scrolling sideways. */
+    private static final class WidthTrackingPanel extends JPanel implements Scrollable {
+        private static final long serialVersionUID = 1L;
+
+        WidthTrackingPanel(java.awt.LayoutManager layout) {
+            super(layout);
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return Math.max(16, visible.height - 16);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof JViewport v && v.getHeight() > getPreferredSize().height;
         }
     }
 }

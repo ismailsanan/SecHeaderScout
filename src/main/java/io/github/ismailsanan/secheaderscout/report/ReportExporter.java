@@ -222,7 +222,7 @@ public final class ReportExporter {
                 }
                 for (Finding f : misconfigured) {
                     html.append("<li class=\"misconfigured\" data-header=\"").append(e.apply(f.header())).append("\">")
-                            .append(f.type()).append(" → ").append(e.apply(f.issueName()))
+                            .append(f.type().label()).append(" → ").append(e.apply(f.issueName()))
                             .append(" [").append(f.severity()).append(", ").append(f.confidence()).append("]: ")
                             .append(e.apply(f.detail()));
                     if (f.observedValue() != null) {

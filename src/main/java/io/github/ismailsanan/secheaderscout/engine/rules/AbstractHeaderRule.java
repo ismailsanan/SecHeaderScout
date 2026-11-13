@@ -80,6 +80,7 @@ public abstract class AbstractHeaderRule implements HeaderRule {
                 "The response sends " + header + " with multiple values (" + values.size()
                         + " field lines or a comma-separated list). This header accepts a single value, so browsers "
                         + "fail to parse it and fall back to the default behaviour, as if the header were absent.",
-                Severity.LOW, Confidence.CERTAIN);
+                Severity.LOW, Confidence.CERTAIN).withSummary("sent " + values.size()
+                + " times or as a list; browsers ignore it");
     }
 }

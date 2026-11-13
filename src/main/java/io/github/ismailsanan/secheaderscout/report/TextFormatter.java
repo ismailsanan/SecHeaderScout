@@ -1,12 +1,13 @@
 package io.github.ismailsanan.secheaderscout.report;
 
 import io.github.ismailsanan.secheaderscout.engine.Finding;
+import io.github.ismailsanan.secheaderscout.engine.FindingType;
+import io.github.ismailsanan.secheaderscout.engine.Severity;
 import io.github.ismailsanan.secheaderscout.model.HeaderProfile;
 import io.github.ismailsanan.secheaderscout.model.ScanResult;
 import io.github.ismailsanan.secheaderscout.util.UrlPaths;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,7 +21,14 @@ public final class TextFormatter {
     private TextFormatter() {
     }
 
-    /** Detailed plain-text description of one result (also used by the details pane). */
+    /** Longest observed value still shown inline; longer ones (e.g. full CSP policies) are left out. */
+    private static final int MAX_INLINE_VALUE = 40;
+
+    /**
+     * Plain-text description of one result for the details pane: the missing headers, then each
+     * misconfigured header once with its problems listed under it and a one-sentence explanation.
+     * Long raw header values (such as a CSP listing every allowed origin) are not repeated.
+     */
     public static String details(ScanResult r) {
         StringBuilder sb = new StringBuilder();
         sb.append(r.method() == null ? "" : r.method() + " ").append(r.url());
@@ -32,48 +40,83 @@ public final class TextFormatter {
             sb.append("  ⚠ ").append(r.fallbackWarning()).append('\n');
         }
         switch (r.status()) {
-            case ERROR -> sb.append("  ERROR         -> ").append(r.error()).append('\n');
-            case INCOMPLETE -> sb.append("  EVALUATION INCOMPLETE -> at least one rule failed; the absence of "
+            case ERROR -> sb.append("\nERROR: ").append(r.error()).append('\n');
+            case INCOMPLETE -> sb.append("\nEVALUATION INCOMPLETE: at least one rule failed, so the absence of "
                     + "findings does not mean clean (see notes)\n");
-            case CLEAN -> sb.append("  No issues found for the evaluated headers\n");
+            case CLEAN -> sb.append("\nNo issues found for the evaluated headers\n");
             case FINDINGS -> { }
         }
+        Map<String, List<Finding>> misconfigured = byHeader(r.misconfigured());
+        int width = 0;
         for (Finding f : r.missing()) {
-            sb.append("  MISSING       -> ").append(f.header()).append("  [").append(f.severity()).append(", ")
-                    .append(f.confidence()).append("]  recommended: ").append(f.recommended()).append('\n');
+            width = Math.max(width, f.header().length());
         }
-        for (Finding f : r.misconfigured()) {
-            sb.append("  ").append(String.format("%-13s", f.type())).append(" -> ").append(f.issueName())
-                    .append("  [").append(f.severity()).append(", ").append(f.confidence()).append("]\n")
-                    .append("                   ").append(f.detail()).append('\n');
-            if (f.observedValue() != null) {
-                sb.append("                   observed: ").append(f.observedValue()).append('\n');
+        for (String header : misconfigured.keySet()) {
+            width = Math.max(width, header.length());
+        }
+        int columns = Math.min(width, 40);
+
+        if (!r.missing().isEmpty()) {
+            sb.append("\nMissing (").append(r.missing().size()).append(")\n");
+            for (Finding f : r.missing()) {
+                sb.append("  - ").append(pad(f.header(), columns)).append("  [Severity: ")
+                        .append(severity(f.severity()))
+                        .append("]\n");
             }
         }
-        for (String note : r.notes()) {
-            sb.append("  NOTE          -> ").append(note).append('\n');
+        if (!misconfigured.isEmpty()) {
+            sb.append("\nMisconfigured (").append(misconfigured.size()).append(misconfigured.size() == 1
+                    ? " header)\n" : " headers)\n");
+            misconfigured.forEach((header, findings) -> {
+                sb.append("  - ").append(pad(header, columns)).append("  [Severity: ")
+                        .append(severity(worst(findings)))
+                        .append("]\n");
+                for (Finding f : findings) {
+                    sb.append("      * ").append(problem(f));
+                    String brief = brief(f);
+                    if (brief != null) {
+                        sb.append(": ").append(brief);
+                    }
+                    if (f.type() != FindingType.WEAK) {
+                        sb.append("  (").append(f.type().label()).append(')');
+                    }
+                    sb.append('\n');
+                    // the short summary already says what is lacking and why; only explain findings without one
+                    String why = f.summary().isEmpty() ? firstSentence(f.detail()) : "";
+                    if (!why.isEmpty()) {
+                        sb.append("        ").append(why).append('\n');
+                    }
+                }
+            });
+        }
+        if (!r.notes().isEmpty()) {
+            sb.append("\nNotes\n");
+            r.notes().forEach(note -> sb.append("  - ").append(note).append('\n'));
         }
         return sb.toString();
     }
 
     /**
-     * Markdown ready to paste into a pentest report, grouped by host:
+     * Markdown ready to paste into a pentest report, grouped by host, then by header:
      * <pre>
      * ### www.example.com
      *
      * **Missing:**
      *
-     * - Content-Security-Policy
+     * - Referrer-Policy
      *
      * **Misconfigured:**
      *
-     * - Referrer-Policy header has an invalid value: `foo`
+     * - Strict-Transport-Security
+     *   - Max-age is short: max-age is 300 (5 minutes), should be at least 31536000 (one year); ...
      * </pre>
-     * Each header or issue is listed once per host, with "(n of m URLs)" when only
-     * some of the host's URLs are affected. Hosts without anything to report are left
-     * out, but never one with an HTTP-fallback result (its warning must reach the
-     * reader, FR-7), an incomplete evaluation (that is not clean, HE-9) or an
-     * unanalysed URL. Server-derived text is escaped (SEC-10).
+     * Each header appears once per host with its problems as sub-bullets, each followed by
+     * the finding's short summary (what is lacking and, briefly, why), or the first sentence
+     * of its explanation when it has no summary. No URLs, URL
+     * counts or raw header values are listed, so the text stays short. Hosts without anything to report
+     * are left out, but never one with an HTTP-fallback result (its warning must reach the
+     * reader, FR-7), an incomplete evaluation (that is not clean, HE-9) or an unanalysed
+     * URL. Server-derived text is escaped (SEC-10).
      */
     public static String reportMarkdown(List<ScanResult> results) {
         Map<String, List<ScanResult>> byHost = new LinkedHashMap<>();
@@ -92,18 +135,14 @@ public final class TextFormatter {
         Set<String> warnings = new LinkedHashSet<>();
         results.stream().filter(ScanResult::httpFallback).forEach(r -> warnings.add(r.fallbackWarning()));
 
-        Map<String, Integer> missing = new LinkedHashMap<>();
-        Map<String, Misconfiguration> misconfigured = new LinkedHashMap<>();
+        Set<String> missing = new LinkedHashSet<>();
+        // header (lower case) -> issue name -> first finding with that issue (its reason is the one shown)
+        Map<String, Map<String, Finding>> misconfigured = new LinkedHashMap<>();
         for (ScanResult r : analysed) {
-            r.missing().stream().map(Finding::header).distinct().forEach(h -> missing.merge(h, 1, Integer::sum));
-            Set<String> seenHere = new HashSet<>();
+            r.missing().forEach(f -> missing.add(f.header()));
             for (Finding f : r.misconfigured()) {
-                String key = f.header().toLowerCase(Locale.ROOT) + '\n' + f.issueName();
-                Misconfiguration m = misconfigured.computeIfAbsent(key, k -> new Misconfiguration(f));
-                m.observed.add(f.observedValue());
-                if (seenHere.add(key)) {
-                    m.urls++;
-                }
+                misconfigured.computeIfAbsent(f.header().toLowerCase(Locale.ROOT), k -> new LinkedHashMap<>())
+                        .putIfAbsent(f.issueName(), f);
             }
         }
         if (missing.isEmpty() && misconfigured.isEmpty() && errors.isEmpty() && incomplete.isEmpty()
@@ -111,71 +150,129 @@ public final class TextFormatter {
             return;
         }
 
-        int total = analysed.size();
         md.append("### ").append(text(host)).append("\n\n");
         for (String warning : warnings) {
             md.append("> **Warning:** ").append(text(warning)).append("\n\n");
         }
         if (!missing.isEmpty()) {
             md.append("**Missing:**\n\n");
-            missing.forEach((header, urls) -> md.append("- ").append(text(header)).append(coverage(urls, total))
-                    .append('\n'));
+            missing.forEach(header -> md.append("- ").append(text(header)).append('\n'));
             md.append('\n');
         }
         if (!misconfigured.isEmpty()) {
             md.append("**Misconfigured:**\n\n");
-            for (Misconfiguration m : misconfigured.values()) {
-                md.append("- ").append(m.render()).append(coverage(m.urls, total)).append('\n');
+            for (Map<String, Finding> problems : misconfigured.values()) {
+                md.append("- ").append(text(problems.values().iterator().next().header())).append('\n');
+                for (Finding f : problems.values()) {
+                    md.append("  - ").append(text(problem(f)));
+                    String why = f.summary().isEmpty() ? firstSentence(f.detail()) : f.summary();
+                    if (!why.isEmpty()) {
+                        md.append(": ").append(text(why));
+                    }
+                    md.append('\n');
+                }
             }
             md.append('\n');
         }
         if (!incomplete.isEmpty()) {
-            md.append("**Evaluation incomplete** (").append(incomplete.size()).append(" of ").append(total)
-                    .append(" URLs): a rule failed, so headers not listed above are not confirmed as correct.\n\n");
+            md.append("**Evaluation incomplete:** a rule failed, so headers not listed above are not confirmed "
+                    + "as correct.\n\n");
             incomplete.stream().flatMap(r -> r.notes().stream()).distinct()
                     .forEach(note -> md.append("- ").append(text(note)).append('\n'));
             md.append('\n');
         }
         if (!errors.isEmpty()) {
             md.append("**Not analysed:**\n\n");
-            for (ScanResult r : errors) {
-                md.append("- ").append(code(r.url())).append(": ")
-                        .append(text(r.error())).append('\n');
-            }
+            errors.stream().map(r -> r.error() == null ? "unknown error" : r.error()).distinct()
+                    .forEach(reason -> md.append("- ").append(text(reason)).append('\n'));
             md.append('\n');
         }
     }
 
-    /** One misconfiguration of a host, merged across the URLs where it occurs. */
-    private static final class Misconfiguration {
-        private final Finding first;
-        private final Set<String> observed = new LinkedHashSet<>();
-        private int urls;
-
-        Misconfiguration(Finding first) {
-            this.first = first;
+    /** Groups findings by header (case-insensitively), keeping first-seen order and spelling. */
+    private static Map<String, List<Finding>> byHeader(List<Finding> findings) {
+        Map<String, List<Finding>> byKey = new LinkedHashMap<>();
+        Map<String, String> spelling = new LinkedHashMap<>();
+        for (Finding f : findings) {
+            String key = f.header().toLowerCase(Locale.ROOT);
+            spelling.putIfAbsent(key, f.header());
+            byKey.computeIfAbsent(key, k -> new ArrayList<>()).add(f);
         }
-
-        String render() {
-            String name = first.issueName();
-            StringBuilder sb = new StringBuilder();
-            if (!name.toLowerCase(Locale.ROOT).contains(first.header().toLowerCase(Locale.ROOT))) {
-                sb.append(text(first.header())).append(": ");
-            }
-            sb.append(text(name));
-            observed.remove(null);
-            if (!observed.isEmpty()) {
-                sb.append(": ").append(code(observed.iterator().next()));
-                if (observed.size() > 1) {
-                    sb.append(" (value varies across URLs)");
-                }
-            }
-            return sb.toString();
-        }
+        Map<String, List<Finding>> out = new LinkedHashMap<>();
+        byKey.forEach((key, list) -> out.put(spelling.get(key), list));
+        return out;
     }
 
-    private static String coverage(int affected, int total) {
-        return total > 1 && affected < total ? " (" + affected + " of " + total + " URLs)" : "";
+    /**
+     * The issue name without the header it is listed under: "Content-Security-Policy allows eval"
+     * becomes "Allows eval", "X-Frame-Options header has an invalid value" becomes "Has an invalid value".
+     */
+    static String problem(Finding f) {
+        String name = f.issueName();
+        String header = f.header();
+        if (name.regionMatches(true, 0, header, 0, header.length())) {
+            String rest = name.substring(header.length()).strip();
+            if (rest.regionMatches(true, 0, "header ", 0, 7)) {
+                rest = rest.substring(7).strip();
+            }
+            if (!rest.isEmpty()) {
+                name = rest;
+            }
+        }
+        return name.isEmpty() ? name : Character.toUpperCase(name.charAt(0)) + name.substring(1);
+    }
+
+    /**
+     * What goes after the problem name in the details pane: the finding's short summary
+     * (what is lacking and why), else the observed value when it is short, else {@code null}.
+     */
+    private static String brief(Finding f) {
+        return f.summary().isEmpty() ? inlineValue(f.observedValue()) : f.summary();
+    }
+
+    /** {@code value} if it is short enough to show inline, else {@code null}. */
+    private static String inlineValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String v = value.strip();
+        return v.isEmpty() || v.length() > MAX_INLINE_VALUE ? null : v;
+    }
+
+    private static Severity worst(List<Finding> findings) {
+        Severity worst = Severity.INFORMATION;
+        for (Finding f : findings) {
+            if (f.severity().compareTo(worst) > 0) {
+                worst = f.severity();
+            }
+        }
+        return worst;
+    }
+
+    private static String severity(Severity s) {
+        return switch (s) {
+            case INFORMATION -> "Info";
+            case LOW -> "Low";
+            case MEDIUM -> "Medium";
+            case HIGH -> "High";
+        };
+    }
+
+    /** The first sentence of {@code text}, cut to 160 characters. */
+    private static String firstSentence(String text) {
+        if (text == null) {
+            return "";
+        }
+        String t = text.strip().replace('\n', ' ').replace('\r', ' ');
+        int end = t.indexOf(". ");
+        if (end >= 0) {
+            t = t.substring(0, end + 1);
+        }
+        return t.length() <= 160 ? t : t.substring(0, 157) + "...";
+    }
+
+    private static String pad(String value, int width) {
+        return value.length() >= width ? value : value + " ".repeat(width - value.length());
     }
 
     private static String hostOf(ScanResult r) {
@@ -233,13 +330,17 @@ public final class TextFormatter {
         }
         if (!p.misconfigured().isEmpty()) {
             sb.append("\nMisconfigured:\n");
-            for (Finding f : p.misconfigured()) {
-                sb.append("  - ").append(f.issueName());
-                if (f.observedValue() != null) {
-                    sb.append("  (observed: ").append(abbreviate(f.observedValue())).append(')');
+            byHeader(p.misconfigured()).forEach((header, findings) -> {
+                sb.append("  - ").append(header).append('\n');
+                for (Finding f : findings) {
+                    sb.append("      * ").append(problem(f));
+                    String brief = brief(f);
+                    if (brief != null) {
+                        sb.append(": ").append(brief);
+                    }
+                    sb.append('\n');
                 }
-                sb.append('\n');
-            }
+            });
         }
         if (r.evaluationIncomplete()) {
             sb.append("\nEvaluation incomplete: a rule failed, so headers not listed are not confirmed as correct.\n");
@@ -295,10 +396,5 @@ public final class TextFormatter {
             }
         }
         return sb.toString();
-    }
-
-    /** Inline code span that cannot be broken out of by backticks in the value. */
-    private static String code(String value) {
-        return "`" + value.replace("`", "'").replace("\n", " ").replace("\r", " ") + "`";
     }
 }

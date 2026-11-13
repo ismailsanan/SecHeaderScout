@@ -59,20 +59,20 @@ public final class StrictTransportSecurityRule extends AbstractHeaderRule {
                     String.join(" | ", values),
                     "The response sends " + values.size() + " Strict-Transport-Security headers. Per RFC 6797 "
                             + "browsers process only the first one: '" + raw + "'.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary(values.size() + " headers sent; browsers use only the first"));
         }
         HeaderSyntax.Directives d = HeaderSyntax.parseDirectives(raw, true);
         if (!d.duplicates().isEmpty()) {
             out.add(finding(FindingType.INVALID, "Strict-Transport-Security header has duplicate directives", raw,
                     "The directives " + d.duplicates() + " appear more than once. RFC 6797 requires browsers to "
                             + "ignore such a header entirely, so HSTS is not enforced.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("directives " + d.duplicates() + " repeated; browsers ignore the header"));
             return;
         }
         if (!d.has("max-age")) {
             out.add(finding(FindingType.INVALID, "Strict-Transport-Security header lacks max-age", raw,
                     "The required max-age directive is missing, so browsers ignore the header.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("lacks max-age; browsers ignore the header"));
             return;
         }
         long maxAge = parseDeltaSeconds(d.get("max-age"));
@@ -81,28 +81,29 @@ public final class StrictTransportSecurityRule extends AbstractHeaderRule {
                     "The max-age value '" + d.get("max-age") + "' is not a valid delta-seconds value (one or "
                             + "more digits, optionally quoted; signs, decimals and other characters are not "
                             + "allowed), so browsers ignore the header.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("max-age '" + d.get("max-age") + "' is not a number of seconds; browsers ignore the header"));
             return;
         }
         if (maxAge == 0) {
             out.add(finding(FindingType.WEAK, "Strict-Transport-Security disabled by max-age=0", raw,
                     "max-age=0 tells browsers to delete any stored HSTS policy for this host, which removes "
                             + "downgrade protection.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("max-age=0 deletes the HSTS policy; HTTPS is no longer enforced"));
             return;
         }
         if (maxAge < ONE_YEAR) {
             out.add(finding(FindingType.WEAK, "Strict-Transport-Security max-age is short", raw,
-                    "max-age is " + maxAge + " seconds (less than one year). Users who have not visited within "
+                    "max-age is " + maxAge + " seconds (" + duration(maxAge) + "); at least " + ONE_YEAR
+                            + " seconds (one year) is recommended. Users who have not visited within "
                             + "that window are exposed to SSL-stripping on their next visit, and the host is not "
                             + "eligible for the browser preload list.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("max-age is " + maxAge + " (" + duration(maxAge) + "), should be at least " + ONE_YEAR + " (one year); users can be downgraded to HTTP"));
         }
         if (!d.has("includesubdomains")) {
             out.add(finding(FindingType.WEAK, "Strict-Transport-Security does not include subdomains", raw,
                     "includeSubDomains is not set. Subdomains can still be reached over HTTP, where a network "
                             + "attacker can, for example, set cookies that are later sent to this host.",
-                    Severity.INFORMATION, Confidence.FIRM));
+                    Severity.INFORMATION, Confidence.FIRM).withSummary("lacks includeSubDomains; subdomains can still be reached over HTTP"));
         }
     }
 
@@ -128,5 +129,19 @@ public final class StrictTransportSecurityRule extends AbstractHeaderRule {
         } catch (NumberFormatException overflow) {
             return Long.MAX_VALUE;
         }
+    }
+
+    /** A rough human-readable form of {@code seconds}, e.g. "5 minutes" or "30 days". */
+    static String duration(long seconds) {
+        if (seconds < 120) {
+            return seconds + " seconds";
+        }
+        if (seconds < 7_200) {
+            return seconds / 60 + " minutes";
+        }
+        if (seconds < 172_800) {
+            return seconds / 3_600 + " hours";
+        }
+        return seconds / 86_400 + " days";
     }
 }

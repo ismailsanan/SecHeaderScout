@@ -59,7 +59,7 @@ findings ready for a report.
 ### 2.2 Manual scanning (SecHeaderScout tab)
 | ID | Requirement |
 |---|---|
-| FR-6 | The tab offers: target list (hosts from the site map or custom targets, deletable with the Delete key), Quick Scan, Deep Scan, Cancel, Export Report, Rescan & Compare, Copy for report, Clear and Sync OWASP Headers. Button rows wrap on narrow windows instead of hiding buttons. |
+| FR-6 | The tab offers: target list (hosts from the site map or custom targets, deletable with the Delete key, narrowed by a search field that typing in the list also feeds), Quick Scan, Deep Scan, Cancel, Export Report, Rescan & Compare, Copy for report, Clear and Sync OWASP Headers. Button rows wrap on narrow windows instead of hiding buttons. |
 | FR-7 | When HTTP fallback is used, the result records it (protocol, original HTTPS status, reason) and every view (table, details, Markdown, HTML report) shows a visible warning. Fallback can be switched off. |
 | FR-8 | HSTS is never reported missing or weak on a response received over HTTP; a note explains that it was not evaluated. |
 | FR-12 | Rescan & Compare reports a header as FIXED only when it is actually present now; otherwise it reports STILL MISSING, NEW ISSUE, NO LONGER CHECKED or PRESENT BUT INVALID. |
@@ -83,7 +83,7 @@ findings ready for a report.
 | ID | Requirement |
 |---|---|
 | FR-17 | Export Report writes a self-contained HTML report (results, score, profiles, definitions version). |
-| FR-18 | "Copy for report" copies Markdown grouped by host with **Missing:** and **Misconfigured:** bullets, "(n of m URLs)" for partial coverage, and the fallback, incomplete and not-analysed results. |
+| FR-18 | "Copy for report" copies Markdown grouped by host with **Missing:** and **Misconfigured:** bullets (each misconfigured header once, each problem as a sub-bullet with a short summary of what is lacking and why), and the fallback, incomplete and not-analysed results. It lists no URLs, URL counts or raw header values. |
 | FR-19 | An overall risk score (INFO, LOW, MEDIUM, HIGH, CRITICAL) is shown; it is marked as a lower bound when some results were not fully evaluated. |
 
 ### 2.6 Endpoint types

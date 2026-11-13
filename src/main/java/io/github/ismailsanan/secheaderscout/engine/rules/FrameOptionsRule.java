@@ -74,13 +74,13 @@ public final class FrameOptionsRule extends AbstractHeaderRule {
                                 + "the set includes DENY, SAMEORIGIN or ALLOWALL, the HTML standard requires "
                                 + "browsers to block all framing, including same-origin framing, which may not "
                                 + "be what was intended. Older browsers may instead ignore the header.",
-                        Severity.INFORMATION, Confidence.FIRM));
+                        Severity.INFORMATION, Confidence.FIRM).withSummary("conflicting values " + distinct + "; browsers block all framing, even same-origin"));
             } else {
                 out.add(finding(FindingType.INVALID, "X-Frame-Options header has an invalid value", raw,
                         "The response sends several different X-Frame-Options values " + distinct + ", none of "
                                 + "which is DENY, SAMEORIGIN or ALLOWALL. Under the HTML standard the header is "
                                 + "then invalid and ignored, so any site can frame the page.",
-                        Severity.LOW, Confidence.CERTAIN));
+                        Severity.LOW, Confidence.CERTAIN).withSummary("several values " + distinct + ", none of them valid; any site can frame the page"));
             }
             return;
         }
@@ -89,11 +89,11 @@ public final class FrameOptionsRule extends AbstractHeaderRule {
             out.add(finding(FindingType.DEPRECATED, "X-Frame-Options uses deprecated ALLOW-FROM", raw,
                     "ALLOW-FROM is not supported by modern browsers, which ignore the header, so the page can be "
                             + "framed by any site unless CSP frame-ancestors is used.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("ALLOW-FROM is not supported; any site can frame the page"));
         } else if (!value.equals("deny") && !value.equals("sameorigin")) {
             out.add(finding(FindingType.INVALID, "X-Frame-Options header has an invalid value", raw,
                     "'" + raw + "' is not DENY or SAMEORIGIN, so browsers ignore the header and allow framing.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("'" + raw + "' is not DENY or SAMEORIGIN; any site can frame the page"));
         }
     }
 }

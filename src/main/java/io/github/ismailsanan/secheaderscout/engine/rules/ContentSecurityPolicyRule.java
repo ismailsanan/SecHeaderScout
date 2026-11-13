@@ -54,7 +54,7 @@ public final class ContentSecurityPolicyRule extends AbstractHeaderRule {
                     headers.combined(REPORT_ONLY),
                     "The document sends Content-Security-Policy-Report-Only but no enforced policy. Report-only "
                             + "policies only report violations; they do not block anything.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("only the report-only header is sent; nothing is blocked"));
         }
         return super.evaluate(headers, context);
     }
@@ -115,13 +115,13 @@ public final class ContentSecurityPolicyRule extends AbstractHeaderRule {
             out.add(finding(FindingType.CONFLICT, "Content-Security-Policy has duplicate directives", raw,
                     "The directives " + duplicates + " appear more than once in a policy. Browsers use the first "
                             + "occurrence and ignore later ones, which may not be what was intended.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("directives " + duplicates + " repeated; only the first one is used"));
         }
         if (!anyRestrictsScripts) {
             out.add(finding(FindingType.WEAK, "Content-Security-Policy does not restrict scripts", raw,
                     "No enforced policy has a script-src or default-src directive, so scripts can be loaded from "
                             + "any origin and the policy gives no XSS protection.",
-                    Severity.LOW, Confidence.FIRM));
+                    Severity.LOW, Confidence.FIRM).withSummary("no script-src or default-src; scripts can load from any origin"));
             return;
         }
         if (!anyBlocksInline) {
@@ -129,19 +129,19 @@ public final class ContentSecurityPolicyRule extends AbstractHeaderRule {
                     "The script policy contains 'unsafe-inline' with no nonce or hash, so injected inline "
                             + "<script> blocks and event handlers will run. This largely defeats CSP as an XSS "
                             + "mitigation.",
-                    Severity.LOW, Confidence.FIRM));
+                    Severity.LOW, Confidence.FIRM).withSummary("'unsafe-inline' without a nonce or hash; injected inline scripts run"));
         }
         if (!anyBlocksEval) {
             out.add(finding(FindingType.WEAK, "Content-Security-Policy allows eval", raw,
                     "The script policy contains 'unsafe-eval', so string-to-code functions such as eval() and "
                             + "new Function() are allowed. DOM XSS sinks then remain exploitable.",
-                    Severity.INFORMATION, Confidence.FIRM));
+                    Severity.INFORMATION, Confidence.FIRM).withSummary("'unsafe-eval' is allowed; eval() and new Function() can run injected code"));
         }
         if (!anyBlocksWildcards) {
             out.add(finding(FindingType.WEAK, "Content-Security-Policy allows scripts from any origin", raw,
                     "The script policy allows a wildcard or scheme-only source ('*', 'https:', 'http:' or "
                             + "'data:'), so an attacker can load script from a host they control.",
-                    Severity.LOW, Confidence.FIRM));
+                    Severity.LOW, Confidence.FIRM).withSummary("wildcard or scheme-only script source (*, https:, data:); attackers can host the script"));
         }
     }
 }

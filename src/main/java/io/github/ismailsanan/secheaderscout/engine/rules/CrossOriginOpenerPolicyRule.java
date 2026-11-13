@@ -52,7 +52,7 @@ public final class CrossOriginOpenerPolicyRule extends SingleTokenRule {
             out.add(finding(FindingType.WEAK, "Cross-Origin-Opener-Policy explicitly disables isolation", raw,
                     "The document explicitly sets 'unsafe-none', which opts out of browsing-context-group "
                             + "isolation. Cross-origin openers keep a window reference to the page.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("'unsafe-none'; cross-origin windows keep a reference to this page"));
         }
     }
 }

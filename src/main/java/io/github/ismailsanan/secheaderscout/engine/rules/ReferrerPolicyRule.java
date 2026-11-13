@@ -67,7 +67,7 @@ public final class ReferrerPolicyRule extends AbstractHeaderRule {
             out.add(finding(FindingType.INVALID, "Referrer-Policy header has an invalid value", raw,
                     "None of the tokens in '" + raw + "' is a valid referrer policy, so browsers ignore the header "
                             + "and use their default ('strict-origin-when-cross-origin' in current browsers).",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("no valid policy value; the browser default applies"));
             return;
         }
         String effective = recognised.get(recognised.size() - 1);
@@ -76,21 +76,21 @@ public final class ReferrerPolicyRule extends AbstractHeaderRule {
                     "The response sends " + values.size() + " Referrer-Policy headers with different policies. "
                             + "Browsers combine them and apply the last recognised token, '" + effective
                             + "', which may not be what was intended.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary(values.size() + " headers sent; '" + effective + "' is the one applied"));
         }
         if (effective.equals("unsafe-url")) {
             out.add(finding(FindingType.WEAK, "Referrer-Policy leaks full URL", raw,
                     "The effective policy 'unsafe-url' sends the full URL, including path and query string, to "
                             + "every origin, even when an HTTPS page links to an HTTP resource. Sensitive data in "
                             + "URLs on this site can leak to third parties and to network observers.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("'unsafe-url' sends the full URL (path and query) to every site"));
         } else if (effective.equals("no-referrer-when-downgrade")) {
             out.add(finding(FindingType.WEAK, "Referrer-Policy leaks full URL to third parties", raw,
                     "The effective policy 'no-referrer-when-downgrade' sends the full URL, including path and "
                             + "query string, to every HTTPS origin, including third parties. Current browsers "
                             + "default to sending only the origin cross-origin, so this setting weakens the "
                             + "browser default.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("'no-referrer-when-downgrade' sends the full URL to other HTTPS sites"));
         }
     }
 }

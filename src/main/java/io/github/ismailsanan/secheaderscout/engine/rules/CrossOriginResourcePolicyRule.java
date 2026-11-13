@@ -59,7 +59,7 @@ public final class CrossOriginResourcePolicyRule extends SingleTokenRule {
                             + "explicitly allows any site to embed it with 'cross-origin'. If the response contains "
                             + "user-specific data, attacker pages can load it into their own process. Confirm whether "
                             + "the resource is genuinely public.",
-                    Severity.INFORMATION, Confidence.TENTATIVE));
+                    Severity.INFORMATION, Confidence.TENTATIVE).withSummary("'cross-origin' on an authenticated response; any site can embed it"));
         }
     }
 }
