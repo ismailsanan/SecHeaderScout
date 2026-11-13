@@ -1,5 +1,9 @@
 package io.github.ismailsanan.secheaderscout.report;
 
+import io.github.ismailsanan.secheaderscout.engine.Confidence;
+import io.github.ismailsanan.secheaderscout.engine.Finding;
+import io.github.ismailsanan.secheaderscout.engine.FindingType;
+import io.github.ismailsanan.secheaderscout.engine.Severity;
 import io.github.ismailsanan.secheaderscout.model.ScanResult;
 import org.junit.jupiter.api.Test;
 
@@ -25,14 +29,14 @@ class TextFormatterAndReportVersionTest {
         assertTrue(details.contains("(HTTP 200)"), details);
         assertTrue(details.contains("HTTP fallback: HTTPS returned 503; these results were obtained over plain HTTP"),
                 details);
-        assertTrue(details.contains("NOTE          -> HTTP fallback note"), details);
-        assertTrue(details.contains("MISSING       -> Referrer-Policy"), details);
+        assertTrue(details.contains("\nNotes\n  - HTTP fallback note\n"), details);
+        assertTrue(details.contains("\nMissing (1)\n  - Referrer-Policy  [Severity: Info]\n"), details);
     }
 
     @Test
     void detailsPaneShowsErrorsAndCleanResults() {
         assertTrue(TextFormatter.details(ScanResult.failed("h", "https://h/", "TLS failure"))
-                .contains("ERROR         -> TLS failure"));
+                .contains("ERROR: TLS failure"));
         assertTrue(TextFormatter.details(result("https://h/", List.of(), Set.of()))
                 .contains("No issues found for the evaluated headers"));
     }
@@ -58,11 +62,12 @@ class TextFormatterAndReportVersionTest {
                 **Missing:**
 
                 - Content-Security-Policy
-                - Referrer-Policy (1 of 2 URLs)
+                - Referrer-Policy
 
                 **Misconfigured:**
 
-                - X-Frame-Options weak: `ALLOWALL`
+                - X-Frame-Options
+                  - Weak: detail for ALLOWALL
 
                 ### api.example.com
 
@@ -72,21 +77,60 @@ class TextFormatterAndReportVersionTest {
                 """, md);
     }
 
+    private static Finding csp(String issue, String policy) {
+        return new Finding("Content-Security-Policy", FindingType.WEAK, issue, policy, "r",
+                "First sentence explains it. Second sentence is left out.", "b", "f", Severity.LOW,
+                Confidence.FIRM);
+    }
+
+    /** Issue #8: one bullet per header, each problem with its reason; no URLs, URL counts or raw values. */
     @Test
-    void reportMarkdownNamesTheHeaderWhenTheIssueNameDoesNotAndNotesVaryingValues() {
-        io.github.ismailsanan.secheaderscout.engine.Finding a = new io.github.ismailsanan.secheaderscout.engine.Finding(
-                "Content-Security-Policy", io.github.ismailsanan.secheaderscout.engine.FindingType.WEAK,
-                "Unsafe inline scripts allowed", "script-src 'nonce-a' 'unsafe-inline'", "r", "d", "b", "f",
-                io.github.ismailsanan.secheaderscout.engine.Severity.MEDIUM,
-                io.github.ismailsanan.secheaderscout.engine.Confidence.CERTAIN);
-        io.github.ismailsanan.secheaderscout.engine.Finding b = new io.github.ismailsanan.secheaderscout.engine.Finding(
-                a.header(), a.type(), a.issueName(), "script-src 'nonce-b' 'unsafe-inline'", "r", "d", "b", "f",
-                a.severity(), a.confidence());
-        String md = TextFormatter.reportMarkdown(List.of(result("https://e.example/a", List.of(a), Set.of()),
-                result("https://e.example/b", List.of(b), Set.of())));
-        assertTrue(md.contains("- Content-Security-Policy: Unsafe inline scripts allowed: "
-                + "`script-src 'nonce-a' 'unsafe-inline'` (value varies across URLs)\n"), md);
-        assertFalse(md.contains("of 2 URLs"), "affects every URL: " + md);
+    void reportMarkdownListsEachHeaderOnceWithItsProblemsAndNoUrlsOrLongValues() {
+        String policy = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn1.example https://cdn2.example "
+                + "https://cdn3.example";
+        String md = TextFormatter.reportMarkdown(List.of(
+                result("https://e.example/a", List.of(csp("Content-Security-Policy allows inline scripts", policy),
+                        csp("Content-Security-Policy allows eval", policy)), Set.of()),
+                result("https://e.example/b", List.of(csp("Content-Security-Policy allows inline scripts",
+                        policy + " https://other.example")), Set.of())));
+        assertEquals("""
+                ### e.example
+
+                **Misconfigured:**
+
+                - Content-Security-Policy
+                  - Allows inline scripts: First sentence explains it.
+                  - Allows eval: First sentence explains it.
+                """, md);
+        assertFalse(md.contains("https://"), md);
+        assertFalse(md.contains("URLs"), md);
+    }
+
+    /** Issue #9: the details pane groups problems by header, explains briefly and omits long raw values. */
+    @Test
+    void detailsPaneGroupsMisconfigurationsByHeaderWithAlignedColumns() {
+        String policy = "script-src 'unsafe-inline' 'unsafe-eval' https://cdn1.example https://cdn2.example";
+        ScanResult r = result("https://e.example/", List.of(missing("Referrer-Policy"),
+                csp("Content-Security-Policy allows inline scripts", policy),
+                csp("Content-Security-Policy allows eval", policy), weak("X-Frame-Options", "ALLOWALL")), Set.of());
+        String details = TextFormatter.details(r);
+        assertTrue(details.contains("""
+
+                Missing (1)
+                  - Referrer-Policy          [Severity: Info]
+
+                Misconfigured (2 headers)
+                  - Content-Security-Policy  [Severity: Low]
+                      * Allows inline scripts
+                        First sentence explains it.
+                      * Allows eval
+                        First sentence explains it.
+                  - X-Frame-Options          [Severity: Low]
+                      * Weak: ALLOWALL
+                        detail for ALLOWALL
+                """), details);
+        assertFalse(details.contains("cdn1"), details);
+        assertFalse(details.contains("WEAK"), details);
     }
 
     @Test
@@ -97,13 +141,14 @@ class TextFormatterAndReportVersionTest {
         String md = TextFormatter.reportMarkdown(List.of(result("https://clean.example/", List.of(), Set.of()),
                 result("https://dirty.example/", List.of(weak("X-A", "v")), Set.of())));
         assertFalse(md.contains("clean.example"));
-        assertTrue(md.contains("- X-A weak: `v`"), md);
+        assertTrue(md.contains("- X-A\n  - Weak: detail for v\n"), md);
     }
 
     @Test
     void reportMarkdownIncludesUnanalysedTargets() {
         String md = TextFormatter.reportMarkdown(List.of(ScanResult.failed("h", "https://h/", "connection refused")));
-        assertTrue(md.contains("**Not analysed:**\n\n- `https://h/`: connection refused"), md);
+        assertTrue(md.contains("**Not analysed:**\n\n- connection refused\n"), md);
+        assertFalse(md.contains("https://h/"), md);
     }
 
     @Test
@@ -114,7 +159,7 @@ class TextFormatterAndReportVersionTest {
         assertTrue(md.startsWith("### e.example\n"), md);
         assertTrue(md.contains("### \\*evil\\*\\<b\\>\n"), md);
         assertFalse(md.contains("\n# "), md);
-        assertTrue(md.contains("`a'b  c`"), md);
+        assertTrue(md.contains("detail for a\\`b  c"), md);
     }
 
     @Test
@@ -135,5 +180,22 @@ class TextFormatterAndReportVersionTest {
         assertFalse(lower.contains(" onerror='"));
         assertFalse(lower.contains("href="), "report must not create links from untrusted URLs");
         assertFalse(lower.contains("src="));
+    }
+
+    /** A finding's short summary (what is lacking, briefly why) is what the report shows after the problem. */
+    @Test
+    void reportAndDetailsPreferTheShortSummary() {
+        Finding cache = new Finding("Cache-Control", FindingType.WEAK,
+                "Cache-Control does not prevent storage of sensitive response", "private, max-age=600", "no-store",
+                "This is a response to an authenticated request, but Cache-Control lacks 'no-store'. More.", "b", "f",
+                Severity.INFORMATION, Confidence.TENTATIVE)
+                .withSummary("lacks 'no-store'; the browser may keep this sensitive response on disk");
+        ScanResult r = result("https://e.example/account", List.of(cache), Set.of());
+        assertTrue(TextFormatter.reportMarkdown(List.of(r)).contains("- Cache-Control\n  - Does not prevent storage of "
+                + "sensitive response: lacks 'no-store'; the browser may keep this sensitive response on disk\n"));
+        String details = TextFormatter.details(r);
+        assertTrue(details.contains("* Does not prevent storage of sensitive response: lacks 'no-store'"), details);
+        assertFalse(details.contains("This is a response to an authenticated request"),
+                "the long explanation is not repeated under a summary: " + details);
     }
 }

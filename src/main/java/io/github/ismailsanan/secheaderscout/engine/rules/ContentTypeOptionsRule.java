@@ -38,7 +38,7 @@ public final class ContentTypeOptionsRule extends AbstractHeaderRule {
                     String.join(", ", values),
                     "The first value is '" + first + "'. Browsers only honour 'nosniff', so MIME sniffing remains "
                             + "enabled.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("'" + first + "' instead of 'nosniff'; MIME sniffing stays on"));
         }
     }
 }

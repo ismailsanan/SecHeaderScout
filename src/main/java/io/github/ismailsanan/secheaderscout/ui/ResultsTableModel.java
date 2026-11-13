@@ -11,10 +11,10 @@ final class ResultsTableModel extends AbstractTableModel {
     private static final long serialVersionUID = 1L;
 
     static final int COL_WARNING = 0;
-    private static final String[] COLUMNS = {"!", "Method", "URL", "Type", "Protocol", "Status", "Missing", "Issues"};
+    private static final String[] COLUMNS = {"!", "Method", "URL", "Type", "Protocol", "Status", "Missing", "Misconfigured"};
 
     private transient List<ScanResult> rows = List.of();
-    // the Missing/Issues columns are Integers: the row sorter does not cache them and calls
+    // the Missing/Misconfigured columns are Integers: the row sorter does not cache them and calls
     // getValueAt on every comparison, so count once here instead of re-streaming findings
     private int[] missingCounts = new int[0];
     private int[] issueCounts = new int[0];

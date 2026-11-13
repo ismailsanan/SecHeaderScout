@@ -107,7 +107,7 @@ class ReportRegressionTest {
     void markdownAndDetailsShowIncompleteEvaluations() {
         ScanResult r = incomplete("https://e.example/", List.of(), Set.of());
         String md = TextFormatter.reportMarkdown(List.of(r));
-        assertTrue(md.contains("**Evaluation incomplete** (1 of 1 URLs)"), md);
+        assertTrue(md.contains("**Evaluation incomplete:**"), md);
         assertTrue(md.contains("NOT assessed"), md);
         String details = TextFormatter.details(r);
         assertTrue(details.contains("EVALUATION INCOMPLETE"), details);

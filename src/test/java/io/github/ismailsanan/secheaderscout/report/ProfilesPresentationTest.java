@@ -73,7 +73,8 @@ class ProfilesPresentationTest {
                   - Referrer-Policy
 
                 Misconfigured:
-                  - X-Frame-Options weak  (observed: x)
+                  - X-Frame-Options
+                      * Weak: x
 
                 URLs:
                   /api/v0?...

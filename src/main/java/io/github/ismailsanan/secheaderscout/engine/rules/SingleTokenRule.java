@@ -99,13 +99,15 @@ public abstract class SingleTokenRule extends AbstractHeaderRule {
         if (!validTokens.contains(token)) {
             out.add(invalid(raw, "The value '" + raw + "' is not a recognised " + header() + " value (expected one of "
                     + expectedText + "). Browsers ignore unrecognised values and apply "
-                    + "the default behaviour, so the intended protection is not in effect.", Confidence.CERTAIN));
+                    + "the default behaviour, so the intended protection is not in effect.", Confidence.CERTAIN)
+                    .withSummary("'" + raw + "' is not a valid value; browsers ignore the header"));
             return;
         }
         if (structuredField && !bareToken(raw).equals(token)) {
             out.add(invalid(raw, "The value '" + raw + "' uses upper-case characters. " + header()
                     + " is a structured header whose tokens are case-sensitive; '" + token
-                    + "' must be sent in lower case or browsers will not recognise it.", Confidence.FIRM));
+                    + "' must be sent in lower case or browsers will not recognise it.", Confidence.FIRM)
+                    .withSummary("'" + raw + "' must be lower case; browsers ignore the header"));
             return;
         }
         evaluateToken(token, raw, headers, context, out);
@@ -134,7 +136,8 @@ public abstract class SingleTokenRule extends AbstractHeaderRule {
                 : "The value '" + combined + "' is not a recognised " + header() + " value (expected exactly one "
                         + "of " + expectedText + "). Browsers ignore unrecognised values, as if the header were "
                         + "absent, so the intended protection is not in effect.";
-        out.add(invalid(combined, detail, Confidence.CERTAIN));
+        out.add(invalid(combined, detail, Confidence.CERTAIN).withSummary("'" + combined + "' is not exactly "
+                + expectedText + "; browsers ignore the header"));
     }
 
     /** The one "invalid value" finding of this header (browsers ignore the value). */

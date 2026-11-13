@@ -39,6 +39,13 @@ class ManualRulesTest {
         }
 
         @Test
+        void shortMaxAgeSummarySaysWhatItIsAndWhatItShouldBe() {
+            List<Finding> findings = eval(rule, HTML, "Strict-Transport-Security", "max-age=300; includeSubDomains");
+            assertEquals("max-age is 300 (5 minutes), should be at least 31536000 (one year); users can be "
+                    + "downgraded to HTTP", single(findings, FindingType.WEAK).summary());
+        }
+
+        @Test
         void strongPolicyIsClean() {
             assertNone(eval(rule, HTML, "Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload"));
             assertNone(eval(rule, HTML, "Strict-Transport-Security", "max-age=\"31536000\";includesubdomains"));
@@ -162,7 +169,8 @@ class ManualRulesTest {
         assertNone(eval(rule, NON_HTML)); // static asset, not sensitive
         assertNone(eval(rule, HTML, "Cache-Control", "public, max-age=3600"));
         single(eval(rule, AUTH_JSON, "Cache-Control", "public, max-age=3600"), FindingType.WEAK);
-        single(eval(rule, AUTH_JSON, "Cache-Control", "private"), FindingType.WEAK);
+        assertEquals("lacks the 'no-store' directive; the browser may keep this sensitive response on disk",
+                single(eval(rule, AUTH_JSON, "Cache-Control", "private"), FindingType.WEAK).summary());
         assertNone(eval(rule, AUTH_JSON, "Cache-Control", "no-store"));
     }
 

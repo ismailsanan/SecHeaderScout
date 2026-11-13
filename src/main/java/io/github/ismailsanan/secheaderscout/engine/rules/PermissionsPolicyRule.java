@@ -65,7 +65,7 @@ public final class PermissionsPolicyRule extends AbstractHeaderRule {
                             + "may not be enforced.",
                     background(),
                     "Migrate the policy to the Permissions-Policy syntax and remove Feature-Policy.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("deprecated Feature-Policy is sent; use Permissions-Policy instead"));
         }
         return out;
     }
@@ -80,7 +80,7 @@ public final class PermissionsPolicyRule extends AbstractHeaderRule {
                     "The Permissions-Policy value cannot be parsed as an RFC 8941 structured-field "
                             + "dictionary (" + parsed.error() + "). Browsers discard a header that fails to parse, "
                             + "so none of its restrictions apply.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("cannot be parsed; browsers ignore the whole header"));
             return;
         }
         if (parsed.hasUnrecognisedEntries()) {
@@ -98,13 +98,13 @@ public final class PermissionsPolicyRule extends AbstractHeaderRule {
                             + "Browsers ignore these entries for the affected features only; the rest of the "
                             + "policy still applies. Write a denied feature as 'feature=()' and allowed origins as "
                             + "'feature=(self \"https://origin.example\")'.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("invalid allowlist entries for " + parsed.unrecognisedEntries().keySet() + "; ignored for those features"));
         }
         if (!parsed.duplicates().isEmpty()) {
             out.add(finding(FindingType.CONFLICT, "Permissions-Policy declares features more than once", raw,
                     "The features " + parsed.duplicates() + " are declared more than once. Only the last "
                             + "declaration of each takes effect, which can silently undo an earlier restriction.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("features " + parsed.duplicates() + " declared more than once; only the last applies"));
         }
         List<String> openToAll = new ArrayList<>();
         for (Map.Entry<String, PermissionsPolicyParser.Allowlist> e : parsed.features().entrySet()) {
@@ -117,7 +117,7 @@ public final class PermissionsPolicyRule extends AbstractHeaderRule {
                     "The policy allows " + openToAll + " for every origin ('*'). Any cross-origin frame the "
                             + "page embeds, including compromised third-party or injected frames, can request "
                             + "these capabilities once the embedding page delegates them.",
-                    Severity.LOW, Confidence.FIRM));
+                    Severity.LOW, Confidence.FIRM).withSummary(openToAll + " allowed for all origins (*); any embedded frame can use them"));
         }
     }
 }

@@ -58,12 +58,12 @@ public final class CacheControlRule extends AbstractHeaderRule {
             out.add(finding(FindingType.WEAK, "Cache-Control marks sensitive response as public", raw,
                     "This is " + why + ", but Cache-Control contains 'public', which allows shared caches to "
                             + "store it and serve it to other users.",
-                    Severity.LOW, Confidence.FIRM));
+                    Severity.LOW, Confidence.FIRM).withSummary("contains 'public'; shared caches may serve this sensitive response to other users"));
         } else if (!directives.contains("no-store")) {
             out.add(finding(FindingType.WEAK, "Cache-Control does not prevent storage of sensitive response", raw,
                     "This is " + why + ", but Cache-Control lacks 'no-store', so the browser may write it to "
                             + "disk where it can be recovered later.",
-                    Severity.INFORMATION, Confidence.TENTATIVE));
+                    Severity.INFORMATION, Confidence.TENTATIVE).withSummary("lacks the 'no-store' directive; the browser may keep this sensitive response on disk"));
         }
     }
 }

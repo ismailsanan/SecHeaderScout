@@ -48,7 +48,7 @@ public final class PermittedCrossDomainPoliciesRule extends SingleTokenRule {
                     "The meta-policy 'all' allows any cross-domain policy file anywhere on this host to be honoured, "
                             + "including files uploaded by users or served from unexpected paths. Check whether "
                             + "the host serves a permissive crossdomain.xml.",
-                    Severity.LOW, Confidence.FIRM));
+                    Severity.LOW, Confidence.FIRM).withSummary("'all' honours any cross-domain policy file on the host"));
         }
     }
 }

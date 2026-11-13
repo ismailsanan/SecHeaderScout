@@ -63,7 +63,7 @@ public final class CrossOriginEmbedderPolicyRule extends SingleTokenRule {
                             + ". Cross-origin isolation needs both COEP and 'Cross-Origin-Opener-Policy: "
                             + "same-origin', so the document carries COEP's compatibility cost without being "
                             + "isolated.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("Cross-Origin-Opener-Policy is not 'same-origin'; the page is not cross-origin isolated"));
         }
     }
 }

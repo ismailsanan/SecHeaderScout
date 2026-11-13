@@ -72,18 +72,18 @@ public final class ClearSiteDataRule extends AbstractHeaderRule {
             out.add(finding(FindingType.INVALID, "Clear-Site-Data directives are not quoted", raw,
                     "The directives " + unquoted + " are not double-quoted strings. Browsers ignore unquoted "
                             + "directives, so the corresponding data is not cleared.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("directives " + unquoted + " are not quoted; browsers ignore them"));
         }
         if (!unknown.isEmpty()) {
             out.add(finding(FindingType.INVALID, "Clear-Site-Data contains unknown directives", raw,
                     "The directives " + unknown + " are not recognised and will be ignored.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("unknown directives " + unknown + "; browsers ignore them"));
         }
         if (!context.secure()) {
             out.add(finding(FindingType.INVALID, "Clear-Site-Data sent over HTTP", raw,
                     "Clear-Site-Data is only processed in secure contexts. This response was received over HTTP, "
                             + "so browsers ignore the header.",
-                    Severity.LOW, Confidence.CERTAIN));
+                    Severity.LOW, Confidence.CERTAIN).withSummary("sent over HTTP; browsers only honour it over HTTPS"));
         }
         if (context.urlType() != UrlClassifier.UrlType.LOGOUT || directives.contains("*")) {
             return;
@@ -93,7 +93,7 @@ public final class ClearSiteDataRule extends AbstractHeaderRule {
                     "The logout response clears " + (directives.isEmpty() ? "nothing" : directives)
                             + " but not \"cookies\". Session and tracking cookies remain in the browser after "
                             + "logout unless they are expired explicitly.",
-                    Severity.LOW, Confidence.TENTATIVE));
+                    Severity.LOW, Confidence.TENTATIVE).withSummary("logout does not clear \"cookies\"; session cookies stay in the browser"));
         }
         List<String> notCleared = new ArrayList<>();
         for (String d : List.of("storage", "cache")) {
@@ -105,7 +105,7 @@ public final class ClearSiteDataRule extends AbstractHeaderRule {
             out.add(finding(FindingType.WEAK, "Clear-Site-Data on logout is incomplete", raw,
                     "The logout response does not clear " + notCleared + ". Client-side storage or cached "
                             + "authenticated pages may remain available after logout.",
-                    Severity.INFORMATION, Confidence.TENTATIVE));
+                    Severity.INFORMATION, Confidence.TENTATIVE).withSummary("logout does not clear " + notCleared + "; that data may stay in the browser"));
         }
     }
 }

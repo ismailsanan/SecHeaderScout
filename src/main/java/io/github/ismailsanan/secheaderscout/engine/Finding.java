@@ -20,6 +20,9 @@ import java.util.Objects;
  * @param remediation   how to fix it
  * @param severity      severity
  * @param confidence    confidence
+ * @param summary       one short line for reports: what is wrong or lacking and, very briefly, why it
+ *                      matters (e.g. "lacks 'no-store'; the browser may keep this response on disk"),
+ *                      or empty when the rule gives none
  */
 public record Finding(
         String header,
@@ -31,8 +34,16 @@ public record Finding(
         String background,
         String remediation,
         Severity severity,
-        Confidence confidence
+        Confidence confidence,
+        String summary
 ) {
+    /** A finding without a short summary (reports fall back to the first sentence of {@code detail}). */
+    public Finding(String header, FindingType type, String issueName, String observedValue, String recommended,
+                   String detail, String background, String remediation, Severity severity, Confidence confidence) {
+        this(header, type, issueName, observedValue, recommended, detail, background, remediation, severity,
+                confidence, "");
+    }
+
     public Finding {
         Objects.requireNonNull(header, "header");
         Objects.requireNonNull(type, "type");
@@ -43,5 +54,12 @@ public record Finding(
         recommended = recommended == null ? "" : recommended;
         background = background == null ? "" : background;
         remediation = remediation == null ? "" : remediation;
+        summary = summary == null ? "" : summary.strip();
+    }
+
+    /** This finding with the given short {@link #summary()}. */
+    public Finding withSummary(String summary) {
+        return new Finding(header, type, issueName, observedValue, recommended, detail, background, remediation,
+                severity, confidence, summary);
     }
 }

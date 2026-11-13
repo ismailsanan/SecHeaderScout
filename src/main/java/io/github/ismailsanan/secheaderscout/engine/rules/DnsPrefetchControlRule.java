@@ -51,7 +51,7 @@ public final class DnsPrefetchControlRule extends SingleTokenRule {
             out.add(finding(FindingType.WEAK, "X-DNS-Prefetch-Control explicitly enables DNS prefetching", raw,
                     "The response explicitly turns on DNS prefetching. This overrides the browser default on HTTPS "
                             + "pages and can reveal the hostnames of links on the page to DNS resolvers.",
-                    Severity.INFORMATION, Confidence.CERTAIN));
+                    Severity.INFORMATION, Confidence.CERTAIN).withSummary("'on' enables DNS prefetching; link hostnames leak to DNS resolvers"));
         }
     }
 }
