@@ -69,7 +69,7 @@ public final class BurpSiteMapSource implements SiteMapSource {
         for (int i = 0; i < entries.size(); i++) {
             Optional<ResponseSnapshot> snapshot;
             try {
-                snapshot = BurpMessages.analysableSnapshot(entries.get(i));
+                snapshot = BurpMessages.snapshotWithEvidence(entries.get(i));
             } catch (RuntimeException e) {
                 // one malformed entry must not abort the whole Deep Scan
                 if (skipped++ == 0) {

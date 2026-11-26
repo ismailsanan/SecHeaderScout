@@ -6,6 +6,7 @@ import burp.api.montoya.core.BurpSuiteEdition;
 import burp.api.montoya.scanner.scancheck.ScanCheckType;
 import io.github.ismailsanan.secheaderscout.burp.BurpEndpointRulesStore;
 import io.github.ismailsanan.secheaderscout.burp.BurpHttpFetcher;
+import io.github.ismailsanan.secheaderscout.burp.BurpMessageView;
 import io.github.ismailsanan.secheaderscout.burp.BurpLog;
 import io.github.ismailsanan.secheaderscout.burp.BurpSiteMapSource;
 import io.github.ismailsanan.secheaderscout.definitions.DefinitionsRepository;
@@ -20,8 +21,15 @@ import io.github.ismailsanan.secheaderscout.ui.ScanPanel;
 import io.github.ismailsanan.secheaderscout.util.BackgroundTasks;
 import io.github.ismailsanan.secheaderscout.util.Log;
 
+import burp.api.montoya.ui.contextmenu.ContextMenuEvent;
+import burp.api.montoya.ui.contextmenu.ContextMenuItemsProvider;
+
+import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
+import java.awt.Component;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -77,9 +85,25 @@ public final class SecHeaderScout implements BurpExtension {
                 () -> new HeaderEvaluator(RuleSets.manualRules(definitions.current().headers()), ruleErrors), log);
 
         ScanPanel panel = createOnEdt(() -> new ScanPanel(manualScanner, new BurpSiteMapSource(api.siteMap(), log),
-                definitions, fetcher, endpointTypes, api.scope()::isInScope, tasks, log));
+                definitions, fetcher, endpointTypes, api.scope()::isInScope,
+                BurpMessageView.request(api.userInterface()), BurpMessageView.response(api.userInterface()),
+                tasks, log));
         api.userInterface().applyThemeToComponent(panel.component());
         api.userInterface().registerSuiteTab(NAME, panel.component());
+        api.userInterface().registerContextMenuItemsProvider(new ContextMenuItemsProvider() {
+            @Override
+            public List<Component> provideMenuItems(ContextMenuEvent event) {
+                List<String> urls = new ArrayList<>();
+                event.selectedRequestResponses().forEach(rr -> urls.add(rr.request().url()));
+                event.messageEditorRequestResponse().ifPresent(m -> urls.add(m.requestResponse().request().url()));
+                if (urls.isEmpty()) {
+                    return List.of();
+                }
+                JMenuItem send = new JMenuItem("Send to " + NAME);
+                send.addActionListener(e -> panel.addTargets(urls)); // action listeners run on the EDT
+                return List.of(send);
+            }
+        });
 
         api.extension().registerUnloadingHandler(() -> {
             // Burp does not specify the unload thread: UI state is reset on the EDT, while the

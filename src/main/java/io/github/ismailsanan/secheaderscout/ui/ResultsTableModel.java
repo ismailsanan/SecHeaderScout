@@ -1,6 +1,9 @@
 package io.github.ismailsanan.secheaderscout.ui;
 
 import io.github.ismailsanan.secheaderscout.model.ScanResult;
+import io.github.ismailsanan.secheaderscout.util.UrlPaths;
+
+import java.util.Comparator;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.List;
@@ -11,23 +14,26 @@ final class ResultsTableModel extends AbstractTableModel {
     private static final long serialVersionUID = 1L;
 
     static final int COL_WARNING = 0;
-    private static final String[] COLUMNS = {"!", "Method", "URL", "Type", "Protocol", "Status", "Missing", "Misconfigured"};
+    static final int COL_PATH = 3;
+    static final int COL_MISSING = 7;
+    // same layout as the "By profile" tab: host, path, missing header names, worst severity
+    private static final String[] COLUMNS =
+            {"!", "Method", "Host", "Path", "Type", "Protocol", "Status", "Missing", "Misconfigured", "Worst"};
 
     private transient List<ScanResult> rows = List.of();
-    // the Missing/Misconfigured columns are Integers: the row sorter does not cache them and calls
-    // getValueAt on every comparison, so count once here instead of re-streaming findings
-    private int[] missingCounts = new int[0];
+    // the row sorter does not cache cells and calls getValueAt on every comparison and paint,
+    // so derived cells are built once here instead of re-streaming findings
+    private transient List<String> missingText = List.of();
+    private transient List<String> worst = List.of();
     private int[] issueCounts = new int[0];
 
     void setRows(List<ScanResult> results) {
         this.rows = results;
-        missingCounts = new int[results.size()];
-        issueCounts = new int[results.size()];
-        for (int i = 0; i < results.size(); i++) {
-            int missing = results.get(i).missing().size();
-            missingCounts[i] = missing;
-            issueCounts[i] = results.get(i).findings().size() - missing;
-        }
+        missingText = results.stream().map(r -> r.hasError() ? "(not analysed)"
+                : String.join(", ", r.missingHeaderNames())).toList();
+        worst = results.stream().map(r -> r.findings().stream().map(f -> f.severity())
+                .max(Comparator.naturalOrder()).map(Enum::name).orElse("")).toList();
+        issueCounts = results.stream().mapToInt(r -> r.misconfigured().size()).toArray();
         fireTableDataChanged();
     }
 
@@ -52,7 +58,7 @@ final class ResultsTableModel extends AbstractTableModel {
 
     @Override
     public Class<?> getColumnClass(int column) {
-        return column == 5 || column == 6 || column == 7 ? Integer.class : String.class;
+        return column == 6 || column == 8 ? Integer.class : String.class;
     }
 
     @Override
@@ -65,12 +71,14 @@ final class ResultsTableModel extends AbstractTableModel {
                 default -> r.httpFallback() ? "⚠ HTTP" : "";
             };
             case 1 -> r.method() == null ? "" : r.method();
-            case 2 -> r.url();
-            case 3 -> r.urlType().label();
-            case 4 -> r.protocol();
-            case 5 -> r.statusCode();
-            case 6 -> missingCounts[rowIndex];
-            case 7 -> issueCounts[rowIndex];
+            case 2 -> UrlPaths.host(r.url());
+            case COL_PATH -> UrlPaths.path(r.url()) + (UrlPaths.query(r.url()).isEmpty() ? "" : "?" + UrlPaths.query(r.url()));
+            case 4 -> r.urlType().label();
+            case 5 -> r.protocol();
+            case 6 -> r.statusCode();
+            case COL_MISSING -> missingText.get(rowIndex);
+            case 8 -> issueCounts[rowIndex];
+            case 9 -> worst.get(rowIndex);
             default -> "";
         };
     }

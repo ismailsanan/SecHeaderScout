@@ -66,7 +66,7 @@ public final class BurpHttpFetcher implements HttpFetcher, DefinitionsRepository
             return Result.failed("no response (connection failure, timeout after " + timeoutMs
                     + " ms, or TLS certificate verification failure)");
         }
-        return BurpMessages.analysableSnapshot(rr).map(Result::of).orElseGet(() ->
+        return BurpMessages.snapshotWithEvidence(rr).map(Result::of).orElseGet(() ->
                 Result.failed("invalid HTTP status line (status " + rr.response().statusCode() + ")"));
     }
 

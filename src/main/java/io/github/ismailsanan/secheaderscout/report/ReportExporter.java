@@ -15,7 +15,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -67,6 +70,10 @@ public final class ReportExporter {
             .notes { color: #999; }
             .clean-msg { color: #00ff88; }
             .observed { color: #bbb; }
+            .heading { color: #ccc; font-weight: bold; margin-top: 8px; }
+            pre { white-space: pre-wrap; word-break: break-all; background: #111; padding: 8px; color: #ccc; }
+            .summary { font-family: sans-serif; font-size: 14px; }
+            summary { cursor: pointer; color: #00aaff; margin-top: 6px; }
             """;
 
     private ReportExporter() {
@@ -161,6 +168,11 @@ public final class ReportExporter {
                     .append(" result(s) were obtained over plain HTTP after HTTPS failed; they are marked below "
                             + "and do not describe the HTTPS site.</p>\n");
         }
+        if (!results.isEmpty()) {
+            // the same text as "Copy for report"
+            html.append("<h2>Summary</h2>\n<pre class=\"summary\">").append(e.apply(TextFormatter.reportText(results)))
+                    .append("</pre>\n");
+        }
         if (!profiles.isEmpty()) {
             renderProfiles(profiles, html, e);
         }
@@ -204,41 +216,44 @@ public final class ReportExporter {
                         .append("</div>\n");
                 case INCOMPLETE -> html.append("<div class=\"warning\">⚠ Evaluation incomplete: at least one rule "
                         + "failed, so headers may be unassessed and the absence of findings does not mean this URL "
-                        + "is clean (see the notes below)</div>\n");
+                        + "is clean</div>\n");
                 case CLEAN -> html.append("<div class=\"clean-msg\">✓ No issues found for the evaluated headers</div>\n");
                 case FINDINGS -> { }
             }
 
-            List<Finding> missing = r.missing();
-            List<Finding> misconfigured = r.misconfigured();
-            if (!missing.isEmpty() || !misconfigured.isEmpty()) {
-                html.append("<ul>\n");
-                for (Finding f : missing) {
+            // same layout as the Details pane: Missing (with severity), then Misconfigured with problems nested
+            if (!r.missing().isEmpty()) {
+                html.append("<div class=\"heading\">Missing</div>\n<ul>\n");
+                for (Finding f : r.missing()) {
                     html.append("<li class=\"missing\" data-header=\"").append(e.apply(f.header())).append("\">")
-                            .append("MISSING → ").append(e.apply(f.header()))
-                            .append(" | Recommended: ").append(e.apply(f.recommended()))
-                            .append(" <span class=\"observed\">[").append(f.severity()).append(", ")
-                            .append(f.confidence()).append("]</span></li>\n");
-                }
-                for (Finding f : misconfigured) {
-                    html.append("<li class=\"misconfigured\" data-header=\"").append(e.apply(f.header())).append("\">")
-                            .append(f.type().label()).append(" → ").append(e.apply(f.issueName()))
-                            .append(" [").append(f.severity()).append(", ").append(f.confidence()).append("]: ")
-                            .append(e.apply(f.detail()));
-                    if (f.observedValue() != null) {
-                        html.append(" <span class=\"observed\">Observed: ").append(e.apply(f.observedValue()))
-                                .append("</span>");
-                    }
-                    html.append("</li>\n");
+                            .append(e.apply(f.header())).append(" <span class=\"observed\">[Severity: ")
+                            .append(f.severity()).append("]</span></li>\n");
                 }
                 html.append("</ul>\n");
             }
-            if (!r.notes().isEmpty()) {
-                html.append("<ul class=\"notes\">\n");
-                for (String note : r.notes()) {
-                    html.append("<li>").append(e.apply(note)).append("</li>\n");
-                }
+            if (!r.misconfigured().isEmpty()) {
+                html.append("<div class=\"heading\">Misconfigured</div>\n<ul>\n");
+                Map<String, List<Finding>> byHeader = new LinkedHashMap<>();
+                r.misconfigured().forEach(f -> byHeader.computeIfAbsent(f.header(), k -> new ArrayList<>()).add(f));
+                byHeader.forEach((header, findings) -> {
+                    html.append("<li class=\"misconfigured\" data-header=\"").append(e.apply(header)).append("\">")
+                            .append(e.apply(header)).append("\n<ul>\n");
+                    for (Finding f : findings) {
+                        String why = f.summary().isEmpty() ? f.detail() : f.summary();
+                        html.append("<li>").append(e.apply(TextFormatter.problem(f)))
+                                .append(why == null || why.isBlank() ? "" : ": " + e.apply(why)).append("</li>\n");
+                    }
+                    html.append("</ul></li>\n");
+                });
                 html.append("</ul>\n");
+            }
+            if (!r.rawRequest().isEmpty()) {
+                html.append("<details><summary>Request</summary><pre>").append(e.apply(r.rawRequest()))
+                        .append("</pre></details>\n");
+            }
+            if (!r.rawResponse().isEmpty()) {
+                html.append("<details><summary>Response</summary><pre>").append(e.apply(r.rawResponse()))
+                        .append("</pre></details>\n");
             }
             html.append("</section>\n");
         }

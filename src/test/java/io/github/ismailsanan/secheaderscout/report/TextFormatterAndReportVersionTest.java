@@ -23,14 +23,14 @@ class TextFormatterAndReportVersionTest {
     private static final ZonedDateTime NOW = ZonedDateTime.parse("2026-11-08T10:00:00Z");
 
     @Test
-    void detailsPaneShowsFallbackWarningProtocolAndNotes() {
+    void detailsPaneShowsFallbackWarningAndProtocolButNoNotes() {
         ScanResult r = fallback("example.com", List.of(missing("Referrer-Policy")));
         String details = TextFormatter.details(r);
         assertTrue(details.contains("(HTTP 200)"), details);
         assertTrue(details.contains("HTTP fallback: HTTPS returned 503; these results were obtained over plain HTTP"),
                 details);
-        assertTrue(details.contains("\nNotes\n  - HTTP fallback note\n"), details);
-        assertTrue(details.contains("\nMissing (1)\n  - Referrer-Policy  [Severity: Info]\n"), details);
+        assertFalse(details.contains("Notes"), details);
+        assertTrue(details.contains("\nMissing\n  - Referrer-Policy  [Severity: Info]\n"), details);
     }
 
     @Test
@@ -42,39 +42,30 @@ class TextFormatterAndReportVersionTest {
     }
 
     @Test
-    void reportMarkdownMarksFallbackResults() {
-        String md = TextFormatter.reportMarkdown(List.of(fallback("example.com", List.of(missing("Referrer-Policy")))));
-        assertTrue(md.startsWith("### example.com\n\n> **Warning:** HTTP fallback: HTTPS returned 503"), md);
-        assertTrue(md.contains("**Missing:**\n\n- Referrer-Policy\n"), md);
+    void reportTextListsMissingHeadersWithoutHosts() {
+        String text = TextFormatter.reportText(List.of(fallback("example.com", List.of(missing("Referrer-Policy")))));
+        assertEquals(TextFormatter.REPORT_INTRO
+                + "One or more of the following security headers are missing:\n\u2022 Referrer-Policy\n", text);
     }
 
     @Test
-    void reportMarkdownGroupsByHostWithMissingThenMisconfiguredBullets() {
-        String md = TextFormatter.reportMarkdown(List.of(
+    void reportTextMergesAllResultsMissingThenMisconfigured() {
+        String text = TextFormatter.reportText(List.of(
                 result("https://www.example.com/", List.of(missing("Content-Security-Policy"),
                         missing("Referrer-Policy"), weak("X-Frame-Options", "ALLOWALL")), Set.of()),
                 result("https://api.example.com/v1", List.of(missing("Referrer-Policy")), Set.of()),
                 result("https://WWW.example.com:443/login?next=/", List.of(missing("Content-Security-Policy"),
                         weak("X-Frame-Options", "ALLOWALL")), Set.of())));
-        assertEquals("""
-                ### www.example.com
+        assertEquals(TextFormatter.REPORT_INTRO + """
+                One or more of the following security headers are missing:
+                \u2022 Content-Security-Policy
+                \u2022 Referrer-Policy
 
-                **Missing:**
-
-                - Content-Security-Policy
-                - Referrer-Policy
-
-                **Misconfigured:**
-
-                - X-Frame-Options
-                  - Weak: detail for ALLOWALL
-
-                ### api.example.com
-
-                **Missing:**
-
-                - Referrer-Policy
-                """, md);
+                One or more of the following security headers are misconfigured:
+                \u2022 X-Frame-Options
+                    \u25e6 Weak: detail for ALLOWALL
+                """, text);
+        assertFalse(text.contains("example.com"), text);
     }
 
     private static Finding csp(String issue, String policy) {
@@ -85,25 +76,22 @@ class TextFormatterAndReportVersionTest {
 
     /** Issue #8: one bullet per header, each problem with its reason; no URLs, URL counts or raw values. */
     @Test
-    void reportMarkdownListsEachHeaderOnceWithItsProblemsAndNoUrlsOrLongValues() {
+    void reportTextListsEachHeaderOnceWithItsProblemsAndNoUrlsOrLongValues() {
         String policy = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn1.example https://cdn2.example "
                 + "https://cdn3.example";
-        String md = TextFormatter.reportMarkdown(List.of(
+        String text = TextFormatter.reportText(List.of(
                 result("https://e.example/a", List.of(csp("Content-Security-Policy allows inline scripts", policy),
                         csp("Content-Security-Policy allows eval", policy)), Set.of()),
                 result("https://e.example/b", List.of(csp("Content-Security-Policy allows inline scripts",
                         policy + " https://other.example")), Set.of())));
-        assertEquals("""
-                ### e.example
-
-                **Misconfigured:**
-
-                - Content-Security-Policy
-                  - Allows inline scripts: First sentence explains it.
-                  - Allows eval: First sentence explains it.
-                """, md);
-        assertFalse(md.contains("https://"), md);
-        assertFalse(md.contains("URLs"), md);
+        assertEquals(TextFormatter.REPORT_INTRO + """
+                One or more of the following security headers are misconfigured:
+                \u2022 Content-Security-Policy
+                    \u25e6 Allows inline scripts: First sentence explains it.
+                    \u25e6 Allows eval: First sentence explains it.
+                """, text);
+        assertFalse(text.contains("https://"), text);
+        assertFalse(text.contains("URLs"), text);
     }
 
     /** Issue #9: the details pane groups problems by header, explains briefly and omits long raw values. */
@@ -116,50 +104,48 @@ class TextFormatterAndReportVersionTest {
         String details = TextFormatter.details(r);
         assertTrue(details.contains("""
 
-                Missing (1)
-                  - Referrer-Policy          [Severity: Info]
+                Missing
+                  - Referrer-Policy  [Severity: Info]
 
-                Misconfigured (2 headers)
-                  - Content-Security-Policy  [Severity: Low]
-                      * Allows inline scripts
-                        First sentence explains it.
-                      * Allows eval
-                        First sentence explains it.
-                  - X-Frame-Options          [Severity: Low]
-                      * Weak: ALLOWALL
-                        detail for ALLOWALL
+                Misconfigured
+                  - Content-Security-Policy
+                    - Allows inline scripts
+                      First sentence explains it.
+                    - Allows eval
+                      First sentence explains it.
+                  - X-Frame-Options
+                    - Weak: ALLOWALL
+                      detail for ALLOWALL
                 """), details);
+        assertFalse(details.contains("Severity: Low"), "no severity on misconfigured headers: " + details);
         assertFalse(details.contains("cdn1"), details);
         assertFalse(details.contains("WEAK"), details);
     }
 
     @Test
-    void reportMarkdownSkipsCleanHostsAndHasAnEmptyMessage() {
-        assertEquals("No findings to copy.", TextFormatter.reportMarkdown(List.of()));
+    void reportTextSkipsCleanResultsAndHasAnEmptyMessage() {
+        assertEquals("No findings to copy.", TextFormatter.reportText(List.of()));
         assertEquals("No findings to copy.",
-                TextFormatter.reportMarkdown(List.of(result("https://clean.example/", List.of(), Set.of()))));
-        String md = TextFormatter.reportMarkdown(List.of(result("https://clean.example/", List.of(), Set.of()),
+                TextFormatter.reportText(List.of(result("https://clean.example/", List.of(), Set.of()))));
+        String text = TextFormatter.reportText(List.of(result("https://clean.example/", List.of(), Set.of()),
                 result("https://dirty.example/", List.of(weak("X-A", "v")), Set.of())));
-        assertFalse(md.contains("clean.example"));
-        assertTrue(md.contains("- X-A\n  - Weak: detail for v\n"), md);
+        assertFalse(text.contains("clean.example"));
+        assertTrue(text.contains("\u2022 X-A\n    \u25e6 Weak: detail for v\n"), text);
     }
 
     @Test
-    void reportMarkdownIncludesUnanalysedTargets() {
-        String md = TextFormatter.reportMarkdown(List.of(ScanResult.failed("h", "https://h/", "connection refused")));
-        assertTrue(md.contains("**Not analysed:**\n\n- connection refused\n"), md);
-        assertFalse(md.contains("https://h/"), md);
+    void reportTextLeavesOutUnanalysedTargets() {
+        assertEquals("No findings to copy.",
+                TextFormatter.reportText(List.of(ScanResult.failed("h", "https://h/", "connection refused"))));
     }
 
     @Test
-    void reportMarkdownCodeSpansAndHeadingsCannotBeBrokenOut() {
+    void reportTextKeepsEachItemOnOneLine() {
         String url = "https://e.example/`**pwn**`\n# heading";
-        String md = TextFormatter.reportMarkdown(List.of(result(url, List.of(weak("X-A", "a`b\r\nc")), Set.of()),
-                ScanResult.failed("t", "https://*evil*<b>\n# x/", "e")));
-        assertTrue(md.startsWith("### e.example\n"), md);
-        assertTrue(md.contains("### \\*evil\\*\\<b\\>\n"), md);
-        assertFalse(md.contains("\n# "), md);
-        assertTrue(md.contains("detail for a\\`b  c"), md);
+        String text = TextFormatter.reportText(List.of(result(url, List.of(weak("X-A", "a`b\r\nc")), Set.of())));
+        assertFalse(text.contains("\n# "), text);
+        assertFalse(text.contains("e.example"), text);
+        assertTrue(text.contains("detail for a`b  c"), text);
     }
 
     @Test
@@ -191,11 +177,11 @@ class TextFormatterAndReportVersionTest {
                 Severity.INFORMATION, Confidence.TENTATIVE)
                 .withSummary("lacks 'no-store'; the browser may keep this sensitive response on disk");
         ScanResult r = result("https://e.example/account", List.of(cache), Set.of());
-        assertTrue(TextFormatter.reportMarkdown(List.of(r)).contains("- Cache-Control\n  - Does not prevent storage of "
-                + "sensitive response: lacks 'no-store'; the browser may keep this sensitive response on disk\n"));
+        assertTrue(TextFormatter.reportText(List.of(r)).contains("\u2022 Cache-Control\n    \u25e6 Does not prevent "
+                + "storage of sensitive response: lacks 'no-store'; the browser may keep this sensitive response on disk\n"));
         String details = TextFormatter.details(r);
-        assertTrue(details.contains("* Does not prevent storage of sensitive response: lacks 'no-store'"), details);
-        assertFalse(details.contains("This is a response to an authenticated request"),
-                "the long explanation is not repeated under a summary: " + details);
+        assertTrue(details.contains("  - Cache-Control\n    - Does not prevent storage of sensitive response: "
+                + "lacks 'no-store'"), details);
+        assertFalse(details.contains("This is a response to an authenticated request"), details);
     }
 }

@@ -96,19 +96,14 @@ class ReportRegressionTest {
     // ---- 2. TextFormatter ------------------------------------------------------------------------
 
     @Test
-    void markdownKeepsFallbackResultsWithoutFindings() {
+    void reportTextHasNothingForACleanFallback() {
         ScanResult cleanFallback = fallback("example.com", List.of());
-        String md = TextFormatter.reportMarkdown(List.of(cleanFallback));
-        assertTrue(md.contains("### example.com"), md);
-        assertTrue(md.contains("> **Warning:** HTTP fallback: HTTPS returned 503"), md);
+        assertEquals("No findings to copy.", TextFormatter.reportText(List.of(cleanFallback)));
     }
 
     @Test
     void markdownAndDetailsShowIncompleteEvaluations() {
         ScanResult r = incomplete("https://e.example/", List.of(), Set.of());
-        String md = TextFormatter.reportMarkdown(List.of(r));
-        assertTrue(md.contains("**Evaluation incomplete:**"), md);
-        assertTrue(md.contains("NOT assessed"), md);
         String details = TextFormatter.details(r);
         assertTrue(details.contains("EVALUATION INCOMPLETE"), details);
         assertFalse(details.contains("No issues found"), details);
@@ -257,8 +252,8 @@ class ReportRegressionTest {
                 && c.noLongerChecked().isEmpty());
         assertFalse(c.unchanged());
         String text = TextFormatter.comparison(List.of(c), false);
-        assertTrue(text.contains("previously not analysed — no baseline"), text);
-        assertFalse(text.contains("NEW ISSUE"), text);
+        assertTrue(text.contains("No baseline: previously not analysed"), text);
+        assertFalse(text.contains("New issues"), text);
         assertFalse(text.contains("No changes"), text);
     }
 
@@ -269,8 +264,8 @@ class ReportRegressionTest {
         assertTrue(c.rescanFailed());
         assertTrue(c.fixed().isEmpty() && c.noLongerChecked().isEmpty() && c.newlyMissing().isEmpty());
         String text = TextFormatter.comparison(List.of(c), false);
-        assertTrue(text.contains("RESCAN FAILED     -> could not rescan: timeout"), text);
-        assertFalse(text.contains("NO LONGER CHECKED"), text);
+        assertTrue(text.contains("Could not rescan: timeout"), text);
+        assertFalse(text.contains("No longer checked"), text);
     }
 
     @Test
@@ -284,8 +279,8 @@ class ReportRegressionTest {
         assertTrue(c.newlyMissing().isEmpty());
         assertTrue(c.noLongerChecked().isEmpty());
         String text = TextFormatter.comparison(List.of(c), false);
-        assertTrue(text.contains("EVALUATION INCOMPLETE"), text);
-        assertTrue(text.contains("STILL MISSING     -> referrer-policy"), text);
+        assertTrue(text.contains("Evaluation incomplete"), text);
+        assertTrue(text.contains("Still missing:\n    • referrer-policy"), text);
         assertFalse(text.contains("No changes"), text);
     }
 
@@ -300,8 +295,8 @@ class ReportRegressionTest {
         assertTrue(c.noLongerChecked().isEmpty());
         assertFalse(c.unchanged());
         String text = TextFormatter.comparison(List.of(c), false);
-        assertTrue(text.contains("PRESENT, INVALID  -> x-frame-options"), text);
-        assertFalse(text.contains("FIXED             -> x-frame-options"), text);
+        assertTrue(text.contains("Present but invalid (browsers ignore it, so not fixed):\n    • x-frame-options"), text);
+        assertFalse(text.contains("Fixed:\n    • x-frame-options"), text);
     }
 
     @Test

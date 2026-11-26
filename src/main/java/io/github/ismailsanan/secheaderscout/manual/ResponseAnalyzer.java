@@ -42,6 +42,6 @@ public final class ResponseAnalyzer {
                 fallback == null ? null : fallback.originalHttpsStatus(),
                 fallback == null ? null : fallback.reason(),
                 null, context.urlType(), evaluation.findings(), notes, snapshot.headers().names(),
-                !evaluation.complete());
+                !evaluation.complete(), snapshot.rawRequest(), snapshot.rawResponse());
     }
 }

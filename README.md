@@ -16,7 +16,7 @@ SecHeaderScout has two independent parts:
 | | Passive scanner | Manual scanner (SecHeaderScout tab) |
 |---|---|---|
 | Trigger | Automatic, on traffic Burp passively scans | User clicks Quick Scan / Deep Scan |
-| Output | Native **Burp issues** (Target → Issues, Dashboard) | Results table, HTML report, report-ready Markdown, comparison |
+| Output | Native **Burp issues** (Target → Issues, Dashboard) | Results table, HTML report, report-ready text, comparison |
 | Headers | The 8 headers Burp does **not** already cover (below) | All OWASP-recommended headers + CORS |
 | Network | **Never** sends requests | Quick Scan: one GET per target (+1 plain-HTTP GET if HTTPS fails and fallback is on); Rescan: one GET per URL; Deep Scan: none |
 | Edition | Burp Suite Professional / Enterprise | All editions |
@@ -31,11 +31,14 @@ SecHeaderScout has two independent parts:
 - **Quick Scan** (one request per host or URL, plus an optional, clearly marked HTTP fallback) and **Deep Scan** (re-analyses responses already in the site map).
 - **Deep Scan grouping**: responses already in the site map are grouped by host and path (`/api/*`), so a large
   site reads as a few rows ("`/api/*`, 40 URLs, missing: ..."), with login/logout/payment/admin groups first.
-- **Copy for report**: one click copies the results as Markdown grouped by host (**Missing:** /
-  **Misconfigured:** bullets, each problem with a one-line "what is lacking and why"), ready to paste into a
-  pentest report.
+- **Send to SecHeaderScout**: right-click any request in Burp (Proxy history, site map, Repeater, ...) to add it
+  as a target, selected and ready to scan.
+- **Request / Response tabs**: next to Details, Burp's own message viewer shows exactly the request sent and the
+  response received for the selected result, as evidence.
+- **Copy for report**: one click copies the missing and misconfigured headers of all results as one bullet list
+  (no hosts or URLs), each problem with a one-line "what is lacking and why", ready to paste into a pentest report.
 - **Transparent HTTP fallback**: if HTTPS fails, the result is clearly marked as obtained over HTTP, with
-  the original HTTPS status, in the table, details, Markdown and report. It can be switched off.
+  the original HTTPS status, in the table, details and HTML report. It can be switched off.
 - **Overall risk score** (average per URL, so it does not grow with the number of pages scanned), **critical URL** highlighting (login, logout, admin, API, payment), with editable **endpoint types** (saved in the Burp project) for URLs the keywords miss.
 - **Honest results**: if a rule fails internally, the result is marked *incomplete* (never "clean") in the table, report and score.
 - **HTML report export** (XSS-safe) and **Rescan & Compare** against a previous report.
@@ -135,7 +138,7 @@ appear under **Target → Site map → Issues** and in the **Dashboard**. They c
 2. Select one or more targets and click
    - **Quick Scan**: sends one GET to each target. Targets without a scheme are tried over HTTPS first;
      with *Fall back to HTTP* enabled, a failed or 4xx/5xx HTTPS attempt is retried over HTTP and the
-     result is marked **⚠ HTTP**. Redirects are not followed; the redirect response itself is analysed and a note says so.
+     result is marked **⚠ HTTP**. Redirects are not followed; the redirect response itself is analysed.
    - **Deep Scan**: analyses the responses already in the site map for the selected hosts. No requests are sent,
      so browse (or crawl) the application through Burp first. If nothing was captured, or every response was
      filtered out, a message says so and what to change.
@@ -148,42 +151,44 @@ appear under **Target → Site map → Issues** and in the **Dashboard**. They c
        *names* are compared, not values, so per-request CSP nonces do not split groups.
      - **Priority**: groups containing logout, login, payment or admin endpoints are listed first (and labelled),
        then by severity and size. The **Type** column shows LOGOUT / LOGIN / PAYMENT / ADMIN for those groups.
-3. Click a row to see its details. The **By URL** tab (the default) lists every analysed URL with its number of
-   missing and misconfigured headers; the **By profile** tab shows the Deep Scan groups, each with its missing
-   headers, misconfigurations and URLs (query strings hidden). The details pane lists each misconfigured header
-   once, with its problems and a short "what is lacking and why" under it.
-4. **Copy for report** copies all current results as Markdown you can paste straight into a pentest report,
-   grouped by host:
+3. Click a row to see its details. The **By URL** tab (the default) and the **By profile** tab (Deep Scan groups)
+   share one layout: host, path, type, the missing header names, the number of misconfigurations and the worst
+   severity. The **Details** tab lists the missing headers (with severity), then each misconfigured header once
+   with its problems nested under it:
 
-   ```markdown
-   ### www.example.com
-
-   **Missing:**
-
-   - Content-Security-Policy
-   - Referrer-Policy
-
-   **Misconfigured:**
-
-   - Strict-Transport-Security
-     - Max-age is short: max-age is 300 (5 minutes), should be at least 31536000 (one year); users can be downgraded to HTTP
-   - Cache-Control
-     - Does not prevent storage of sensitive response: lacks the 'no-store' directive; the browser may keep this sensitive response on disk
+   ```
+   Misconfigured
+     - Strict-Transport-Security
+       - Max-age is short: max-age is 300 (5 minutes), should be at least 31536000 (one year)
    ```
 
-   Each header appears once per host, with its problems listed under it. No URLs or raw header values are
-   included, so the text stays short.
-   HTTP-fallback warnings, incomplete evaluations and URLs that could not be analysed are included, and
-   server-supplied text is escaped so it cannot inject links, images or HTML.
+   The **Request** and **Response** tabs show the exact request sent and response received (Burp's own viewer).
+4. **Copy for report** copies all current results as one plain-text list you can paste straight into a pentest
+   report:
+
+   ```
+   There exist some HTTP response headers that can increase the security posture of a web application.
+   One or more of the following security headers are missing:
+   • Content-Security-Policy
+   • Referrer-Policy
+
+   One or more of the following security headers are misconfigured:
+   • Strict-Transport-Security
+       ◦ Max-age is short: max-age is 300 (5 minutes), should be at least 31536000 (one year)
+   ```
+
+   Each header appears once across all results. No hosts, URLs or raw header values are included, and
+   server-supplied text is kept to one line with `<` and `>` removed so it cannot inject HTML.
 
 ### Reports and comparison
-- **Export Report** writes a self-contained HTML file. All values are HTML-escaped, and the page declares
-  a CSP that forbids scripts.
+- **Export Report** writes a self-contained HTML file: a summary (the Copy for report text), then each URL in the
+  Details layout with its request and response in collapsible sections. All values are HTML-escaped, and the
+  page declares a CSP that forbids scripts.
 - **Rescan & Compare** loads a previous report (this version or 1.x). Because a report file decides which URLs
   are requested, it first shows the hosts it would contact, flags hosts outside Burp's target scope and
   asks for confirmation (at most 500 URLs; files over 5 MB are rejected). It then rescans the same URLs and lists
-  FIXED / STILL MISSING / NEW ISSUE / NO LONGER CHECKED / PRESENT BUT INVALID per URL. URLs that could not be
-  analysed in the old report are shown as "no baseline" instead of producing false NEW ISSUE verdicts. A header counts as FIXED only if it is now
+  Fixed / Still missing / New issues / No longer checked / Present but invalid per URL, as bullet lists. URLs that could not be
+  analysed in the old report are shown as "no baseline" instead of producing false new issues. A header counts as fixed only if it is now
   actually present in the response.
 
 ### OWASP definitions

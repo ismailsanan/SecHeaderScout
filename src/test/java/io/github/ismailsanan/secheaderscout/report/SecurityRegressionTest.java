@@ -60,23 +60,18 @@ class SecurityRegressionTest {
         assertEquals(Set.of("referrer-policy"), parsed.get(0).missingHeaders());
     }
 
-    /** SEC-10: server-controlled text must not inject HTML, links or images into copied Markdown. */
+    /** SEC-10: server-controlled text must not inject HTML or extra lines into the copied report text. */
     @Test
-    void markdownEscapesServerControlledText() {
-        String evil = "<img src=https://attacker.example/t.gif>[click](javascript:alert(1)) ![x](y) *b* `c` | d";
+    void reportTextStripsMarkupFromServerControlledText() {
+        String evil = "<img src=https://attacker.example/t.gif>[click](javascript:alert(1))\n# x";
         Finding f = new Finding("X-Content-Type-Options", FindingType.INVALID, "name", evil, "nosniff",
                 "The first value is '" + evil + "'", "bg", "fix", Severity.LOW, Confidence.CERTAIN);
         ScanResult r = new ScanResult("t", "https://e.example/", "GET", 200, true, false, null, null, null,
                 io.github.ismailsanan.secheaderscout.engine.UrlClassifier.UrlType.NORMAL, List.of(f), List.of(), Set.of());
-        ScanResult failed = ScanResult.failed("t", "https://e.example/", "error " + evil);
-        String md = TextFormatter.reportMarkdown(List.of(r, failed));
-        // code spans render their content literally, so only text outside them can inject markup
-        String outsideCode = md.replaceAll("`[^`\\n]*`", "");
-        assertFalse(java.util.regex.Pattern.compile("(?<!\\\\)[<\\[!]").matcher(outsideCode).find(),
-                "unescaped markup outside code spans: " + outsideCode);
-        assertTrue(md.contains("\\<img"), md);
-        assertTrue(md.contains("\\[click\\]"), md);
-        assertTrue(md.contains("X-Content-Type-Options") || md.contains("name"), "readable text kept: " + md);
+        String text = TextFormatter.reportText(List.of(r));
+        assertFalse(text.contains("<") || text.contains(">"), text);
+        assertFalse(text.contains("\n# "), text);
+        assertTrue(text.contains("X-Content-Type-Options"), text);
     }
 
     /** SEC-7: tokens in query strings must not end up in Burp's extension log. */
@@ -95,8 +90,8 @@ class SecurityRegressionTest {
         String text = TextFormatter.comparison(List.of(new Comparison("https://e.example/",
                 Set.of("referrer-policy", "cache-control"), now)), true);
         assertTrue(text.contains("(cancelled, partial)"));
-        assertTrue(text.contains("FIXED             -> referrer-policy"));
-        assertTrue(text.contains("NEW ISSUE         -> permissions-policy"));
-        assertTrue(text.contains("NO LONGER CHECKED -> cache-control"));
+        assertTrue(text.contains("Fixed:\n    • referrer-policy"));
+        assertTrue(text.contains("New issues:\n    • permissions-policy"));
+        assertTrue(text.contains("• cache-control"));
     }
 }

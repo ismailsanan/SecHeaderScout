@@ -42,8 +42,19 @@ public record ScanResult(
         List<Finding> findings,
         List<String> notes,
         Set<String> presentHeaders,
-        boolean evaluationIncomplete
+        boolean evaluationIncomplete,
+        String rawRequest,
+        String rawResponse
 ) {
+    /** Without the raw request/response, e.g. results rebuilt from a report file. */
+    public ScanResult(String target, String url, String method, int statusCode, boolean secure,
+                      boolean httpFallback, Integer originalHttpsStatus, String fallbackReason, String error,
+                      UrlClassifier.UrlType urlType, List<Finding> findings, List<String> notes,
+                      Set<String> presentHeaders, boolean evaluationIncomplete) {
+        this(target, url, method, statusCode, secure, httpFallback, originalHttpsStatus, fallbackReason, error,
+                urlType, findings, notes, presentHeaders, evaluationIncomplete, "", "");
+    }
+
     /**
      * Enforces the states a result can legally be in, so consumers (UI, report,
      * comparison) never have to defend against contradictions such as an errored
@@ -53,6 +64,8 @@ public record ScanResult(
         Objects.requireNonNull(target, "target");
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(urlType, "urlType");
+        rawRequest = rawRequest == null ? "" : rawRequest;
+        rawResponse = rawResponse == null ? "" : rawResponse;
         findings = List.copyOf(findings);
         notes = List.copyOf(notes);
         presentHeaders = presentHeaders.stream().map(ResponseHeaders::normalize)

@@ -78,7 +78,7 @@ class SecHeaderScoutUnloadTest {
             return List.of();
         }).build();
         UserInterface ui = Strict.of(UserInterface.class)
-                .returns("applyThemeToComponent", null)
+                .returns("applyThemeToComponent", null).returns("registerContextMenuItemsProvider", null).returns("createHttpRequestEditor", Strict.of(burp.api.montoya.ui.editor.HttpRequestEditor.class).returns("uiComponent", new javax.swing.JPanel()).returns("setRequest", null).build()).returns("createHttpResponseEditor", Strict.of(burp.api.montoya.ui.editor.HttpResponseEditor.class).returns("uiComponent", new javax.swing.JPanel()).returns("setResponse", null).build())
                 .answers("registerSuiteTab", a -> {
                     tab.set((Component) a[1]);
                     return null;

@@ -16,6 +16,8 @@ import java.util.Objects;
  * @param headers             response headers
  * @param htmlDocument        {@code true} if the response is an HTML document
  * @param credentialedRequest {@code true} if the request carried Cookie or Authorization
+ * @param rawRequest          the request exactly as sent, or {@code ""}
+ * @param rawResponse         the response as received, or {@code ""}
  */
 public record ResponseSnapshot(
         String url,
@@ -24,9 +26,23 @@ public record ResponseSnapshot(
         boolean secure,
         ResponseHeaders headers,
         boolean htmlDocument,
-        boolean credentialedRequest
+        boolean credentialedRequest,
+        String rawRequest,
+        String rawResponse
 ) {
+    public ResponseSnapshot(String url, String method, int statusCode, boolean secure, ResponseHeaders headers,
+                            boolean htmlDocument, boolean credentialedRequest) {
+        this(url, method, statusCode, secure, headers, htmlDocument, credentialedRequest, "", "");
+    }
+
+    public ResponseSnapshot withRaw(String rawRequest, String rawResponse) {
+        return new ResponseSnapshot(url, method, statusCode, secure, headers, htmlDocument, credentialedRequest,
+                rawRequest, rawResponse);
+    }
+
     public ResponseSnapshot {
+        Objects.requireNonNull(rawRequest, "rawRequest");
+        Objects.requireNonNull(rawResponse, "rawResponse");
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(headers, "headers");
         Objects.requireNonNull(method, "method");

@@ -80,7 +80,7 @@ class SecHeaderScoutLifecycleTest {
             Version version = Strict.of(Version.class).returns("edition", edition).build();
             BurpSuite burpSuite = Strict.of(BurpSuite.class).returns("version", version).build();
             UserInterface ui = Strict.of(UserInterface.class)
-                    .returns("applyThemeToComponent", null)
+                    .returns("applyThemeToComponent", null).returns("registerContextMenuItemsProvider", null).returns("createHttpRequestEditor", Strict.of(burp.api.montoya.ui.editor.HttpRequestEditor.class).returns("uiComponent", new javax.swing.JPanel()).returns("setRequest", null).build()).returns("createHttpResponseEditor", Strict.of(burp.api.montoya.ui.editor.HttpResponseEditor.class).returns("uiComponent", new javax.swing.JPanel()).returns("setResponse", null).build())
                     .answers("registerSuiteTab", a -> {
                         tabTitle.set((String) a[0]);
                         return null;

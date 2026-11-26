@@ -45,6 +45,25 @@ public final class BurpMessages {
                 ResponseSnapshot.isHttpsUrl(url), headers, isHtml(headers, response), credentialed));
     }
 
+    /** Longest raw request or response kept: Deep Scan holds one of each per analysed URL. */
+    static final int MAX_RAW_CHARS = 32 * 1024;
+
+    /** Manual-scan snapshot that also carries the raw request and response for the Request/Response tabs. */
+    public static Optional<ResponseSnapshot> snapshotWithEvidence(HttpRequestResponse rr) {
+        return analysableSnapshot(rr).map(s -> {
+            try {
+                return s.withRaw(cap(rr.request().toString()), cap(rr.response().toString()));
+            } catch (RuntimeException e) {
+                return s; // best effort: an unreadable message must not cost the result
+            }
+        });
+    }
+
+    private static String cap(String raw) {
+        return raw.length() <= MAX_RAW_CHARS ? raw
+                : raw.substring(0, MAX_RAW_CHARS) + "\n\n[... truncated at " + MAX_RAW_CHARS + " characters]";
+    }
+
     public static ResponseHeaders headersOf(HttpResponse response) {
         List<Map.Entry<String, String>> pairs = new ArrayList<>();
         for (HttpHeader h : response.headers()) {

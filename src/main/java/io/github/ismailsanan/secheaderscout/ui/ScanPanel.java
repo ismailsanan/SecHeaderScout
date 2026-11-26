@@ -124,6 +124,9 @@ public final class ScanPanel {
     private final TableRowSorter<ResultsTableModel> sorter = new TableRowSorter<>(tableModel);
     private final JTextArea detailsArea = new JTextArea();
     private final JTextArea logArea = new JTextArea();
+    private final MessageView requestView;
+    private final MessageView responseView;
+    private final JScrollPane logPane = new JScrollPane(logArea);
     private final JTabbedPane bottomTabs = new JTabbedPane();
     private final EndpointTypesPanel endpointTypes;
     private final JLabel scoreLabel = new JLabel("Score: N/A");
@@ -149,11 +152,15 @@ public final class ScanPanel {
      * @param downloader    TLS-verified download used by "Sync OWASP Headers"
      * @param endpointTypes where the "Endpoint types" tab saves its patterns
      * @param inScope       Burp target-scope check, used to warn before rescanning URLs taken from a report file
+     * @param requestView   the Request tab (Burp's own message editor)
+     * @param responseView  the Response tab
      */
     public ScanPanel(ManualScanner scanner, SiteMapSource siteMap, DefinitionsRepository definitions,
                      DefinitionsRepository.Downloader downloader, EndpointRulesStore endpointTypes,
-                     Predicate<String> inScope,
+                     Predicate<String> inScope, MessageView requestView, MessageView responseView,
                      BackgroundTasks tasks, Log log) {
+        this.requestView = requestView;
+        this.responseView = responseView;
         this.scanner = scanner;
         this.inScope = inScope;
         this.siteMap = siteMap;
@@ -214,14 +221,8 @@ public final class ScanPanel {
 
     private JPanel titleRow() {
         JPanel row = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("SecHeaderScout - OWASP security header checker");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 2f));
         scoreLabel.setFont(scoreLabel.getFont().deriveFont(Font.BOLD));
-        JPanel left = new JPanel();
-        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
-        left.add(title);
-        left.add(definitionsLabel);
-        row.add(left, BorderLayout.WEST);
+        row.add(definitionsLabel, BorderLayout.WEST);
         row.add(scoreLabel, BorderLayout.EAST);
         return row;
     }
@@ -440,10 +441,10 @@ public final class ScanPanel {
         JButton compare = busyButton("Rescan & Compare");
         JButton clear = new JButton("Clear");
 
-        copyReport.setToolTipText("Copies the filtered results as Markdown grouped by host (missing and misconfigured "
-                + "headers as bullet lists), ready to paste into a pentest report");
+        copyReport.setToolTipText("Copies the missing and misconfigured headers of all results as one bullet list "
+                + "(no hosts or URLs), ready to paste into a pentest report");
         // rendering tens of thousands of results can take a while: never on the EDT
-        copyReport.addActionListener(e -> copyInBackground("Report findings", TextFormatter::reportMarkdown));
+        copyReport.addActionListener(e -> copyInBackground("Report findings", TextFormatter::reportText));
         export.addActionListener(e -> exportReport());
         compare.addActionListener(e -> rescanAndCompare());
         clear.addActionListener(e -> clearResults());
@@ -490,7 +491,8 @@ public final class ScanPanel {
         table.setDefaultRenderer(String.class, new HighlightingRenderer(ResultsTableModel.COL_WARNING));
         table.setDefaultRenderer(Integer.class, new HighlightingRenderer(ResultsTableModel.COL_WARNING));
         table.getColumnModel().getColumn(ResultsTableModel.COL_WARNING).setMaxWidth(70);
-        table.getColumnModel().getColumn(2).setPreferredWidth(500);
+        table.getColumnModel().getColumn(ResultsTableModel.COL_PATH).setPreferredWidth(220);
+        table.getColumnModel().getColumn(ResultsTableModel.COL_MISSING).setPreferredWidth(420);
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 showSelectedDetails();
@@ -509,7 +511,9 @@ public final class ScanPanel {
         detailsArea.setLineWrap(true);
         detailsArea.setWrapStyleWord(true);
         bottomTabs.addTab("Details", new JScrollPane(detailsArea));
-        bottomTabs.addTab("Activity log", new JScrollPane(logArea));
+        bottomTabs.addTab("Request", requestView.component());
+        bottomTabs.addTab("Response", responseView.component());
+        bottomTabs.addTab("Activity log", logPane);
         bottomTabs.addTab("Endpoint types", endpointTypes.component());
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, resultsTabs, bottomTabs);
@@ -620,6 +624,24 @@ public final class ScanPanel {
         applyTargetFilter();
     }
 
+    /**
+     * "Send to SecHeaderScout" from Burp's right-click menu: adds the URLs as custom targets
+     * and selects them, ready for Quick or Deep Scan. EDT-only.
+     */
+    public void addTargets(List<String> urls) {
+        List<String> added = urls.stream().filter(u -> ScanTarget.parse(u).isPresent()).distinct().toList();
+        for (String url : added) {
+            if (!allTargets.contains(url)) {
+                allTargets.add(url);
+            }
+            customTargets.add(url);
+        }
+        targetFilter.setText("");
+        applyTargetFilter();
+        hostList.setSelectedIndices(added.stream().mapToInt(hostModel::indexOf).filter(i -> i >= 0).toArray());
+        setStatus("Received " + added.size() + " target(s) from Burp; selected and ready to scan.");
+    }
+
     private void refreshHosts() {
         runner.start("Refresh targets from site map", () -> {
             List<String> hosts = siteMap.hosts();
@@ -713,7 +735,14 @@ public final class ScanPanel {
         HeaderProfile p = profilesModel.rowAt(profilesTable.convertRowIndexToModel(row));
         detailsArea.setText(TextFormatter.profile(p));
         detailsArea.setCaretPosition(0);
+        showRaw(p.representative());
         bottomTabs.setSelectedIndex(0);
+    }
+
+    /** The Request and Response tabs: exactly what was sent and received for {@code r}. */
+    private void showRaw(ScanResult r) {
+        requestView.show(r == null ? "" : r.rawRequest());
+        responseView.show(r == null ? "" : r.rawResponse());
     }
 
     private void showBatch(String operation, ScanBatch batch) {
@@ -735,11 +764,13 @@ public final class ScanPanel {
         int viewRow = table.getSelectedRow();
         if (viewRow < 0) {
             detailsArea.setText("");
+            showRaw(null);
             return;
         }
         ScanResult r = tableModel.rowAt(table.convertRowIndexToModel(viewRow));
         detailsArea.setText(TextFormatter.details(r));
         detailsArea.setCaretPosition(0);
+        showRaw(r);
         bottomTabs.setSelectedIndex(0);
     }
 
@@ -767,6 +798,7 @@ public final class ScanPanel {
         tableModel.setRows(List.of());
         profilesModel.setRows(List.of());
         detailsArea.setText("");
+        showRaw(null);
         scoreLabel.setText("Score: N/A");
         scoreLabel.setForeground(Color.GRAY);
         setStatus("Results cleared.");
@@ -892,7 +924,7 @@ public final class ScanPanel {
 
     private void showComparison(RescanComparer.Outcome outcome) {
         appendLog(TextFormatter.comparison(outcome.comparisons(), outcome.cancelled()));
-        bottomTabs.setSelectedIndex(1);
+        bottomTabs.setSelectedComponent(logPane);
         setStatus("Rescan & Compare " + (outcome.cancelled() ? "cancelled; partial comparison of " : "finished: ")
                 + outcome.comparisons().size() + " URL(s). See the Activity log.");
     }

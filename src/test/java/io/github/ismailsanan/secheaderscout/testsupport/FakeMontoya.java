@@ -89,6 +89,9 @@ public final class FakeMontoya {
                 .answers("marker", a -> new FakeMarker(new FakeRange((Integer) a[0], (Integer) a[1])))
                 .answers("requestOptions", a -> requestOptions())
                 .answers("httpRequestFromUrl", a -> fakeRequest((String) a[0]))
+                .answers("httpRequest", a -> Strict.of(HttpRequest.class).build())
+                .answers("httpResponse", a -> Strict.of(burp.api.montoya.http.message.responses.HttpResponse.class)
+                        .build())
                 .build();
     }
 

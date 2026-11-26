@@ -100,7 +100,7 @@ class DeepScanUiTest {
                 .returns("siteMap", siteMap)
                 .returns("scope", Strict.of(burp.api.montoya.scope.Scope.class).build())
                 .returns("persistence", io.github.ismailsanan.secheaderscout.testsupport.FakeMontoya.persistence(projectData))
-                .returns("userInterface", Strict.of(UserInterface.class).returns("applyThemeToComponent", null)
+                .returns("userInterface", Strict.of(UserInterface.class).returns("applyThemeToComponent", null).returns("registerContextMenuItemsProvider", null).returns("createHttpRequestEditor", Strict.of(burp.api.montoya.ui.editor.HttpRequestEditor.class).returns("uiComponent", new javax.swing.JPanel()).returns("setRequest", null).build()).returns("createHttpResponseEditor", Strict.of(burp.api.montoya.ui.editor.HttpResponseEditor.class).returns("uiComponent", new javax.swing.JPanel()).returns("setResponse", null).build())
                         .answers("registerSuiteTab", a -> {
                             tab.set((Component) a[1]);
                             return null;

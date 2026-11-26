@@ -74,7 +74,7 @@ class ProfilesPresentationTest {
 
                 Misconfigured:
                   - X-Frame-Options
-                      * Weak: x
+                    - Weak: x
 
                 URLs:
                   /api/v0?...
