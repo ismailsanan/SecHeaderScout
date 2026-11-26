@@ -206,8 +206,6 @@ extension works offline and results are reproducible. The same label is printed 
   definitions apply to Quick Scan, Deep Scan and reports; Burp's passive scanner keeps its fixed rule set;
 - nothing is written to disk: reloading the extension returns to the pinned copy.
 
-To change the pinned copy itself, see [Updating the bundled OWASP definitions](#updating-the-bundled-owasp-definitions).
-
 ## Architecture
 
 ```
@@ -253,31 +251,6 @@ See [`docs/SPECIFICATION.md`](docs/SPECIFICATION.md) for the functional and non-
 - **Redirects are not followed** by Quick Scan; scan the destination URL separately.
 - Burp's `sendRequest` is not interruptible, so cancelling a Quick Scan stops after the in-flight request
   completes or times out (10 s).
-
-## Development and testing
-
-```bash
-mvn test                  # run the JUnit 5 suite
-```
-
-The tests do not need Burp. Montoya interfaces are faked with `java.lang.reflect.Proxy` "strict" fakes that
-fail on any unexpected call, and Montoya's static factories are served by a fake installed in
-`ObjectFactoryLocator.FACTORY` (see `src/test/.../testsupport`). Coverage includes header evaluation per rule,
-passive-check behaviour (detection, de-duplication, consolidation, severity and confidence, escaping, no
-network), report escaping with XSS payloads, empty and large reports, definitions validation, fallback and
-TLS options, cancellation, executor shutdown and concurrent result access.
-
-### Updating the bundled OWASP definitions
-
-1. Pick a commit of [OWASP/www-project-secure-headers](https://github.com/OWASP/www-project-secure-headers)
-   and download `ci/headers_add.json` at that commit:
-   `curl -fsSLO https://raw.githubusercontent.com/OWASP/www-project-secure-headers/<commit>/ci/headers_add.json`
-2. Replace `src/main/resources/owasp/headers_add.json`.
-3. Update `src/main/resources/owasp/definitions.properties` (`source.commit`, `source.last_update_utc`,
-   `source.sha256` = `sha256sum headers_add.json`).
-4. Run `mvn test`: `DefinitionsTest` checks that the bundled file loads and validates. Adjust its expected
-   commit and header count.
-5. Review whether new headers need a dedicated rule in `engine/rules` (otherwise a presence-only check is used).
 
 ## License
 
